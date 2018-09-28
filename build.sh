@@ -8,6 +8,7 @@ popd
 mkdir -p .build-x86; pushd .build-x86
 cmake -DBUILD_EXTERNAL=1 -DCMAKE_TOOLCHAIN_FILE=cmake/gcc.cmake ..; make -j "$(nproc)"
 
+rm -f .build-x86/python/Phdlcpp.cpp.gcno
 lcov -q -c -i -d . -o base.info
 ctest --verbose
 lcov -q -c -d . -o test.info
