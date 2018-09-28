@@ -92,15 +92,15 @@ public:
             if (result >= 0) {
                 switch (readFrame) {
                 case FrameData:
+                    if (++readSequenceNumber > 7)
+                        readSequenceNumber = 0;
                     writeFrame(FrameAck, readSequenceNumber, nullptr, 0);
                     return result;
                 case FrameAck:
                 case FrameNack:
-                    if (readSequenceNumber == writeSequenceNumber) {
-                        writeResult.store(readFrame);
-                        condition.notify_one();
-                        break;
-                    }
+                    writeResult.store(readFrame);
+                    condition.notify_one();
+                    break;
                 }
             } else if (result == -EIO)
                 writeFrame(FrameNack, readSequenceNumber, nullptr, 0);
@@ -120,7 +120,7 @@ public:
         if (!data || !length)
             return -EINVAL;
 
-        std::scoped_lock<std::mutex> writeLock(writeMutex);
+        std::lock_guard<std::mutex> writeLock(writeMutex);
         std::unique_lock<std::mutex> conditionLock(conditionMutex);
 
         // Sequence number is a 3-bit value
@@ -133,9 +133,11 @@ public:
 
             const auto timeout = std::chrono::system_clock::now() + writeTimeout;
             if (condition.wait_until(conditionLock, timeout, [this] { return writeResult.load() >= 0; })) {
-                result = (writeResult.load() == FrameAck) ? length : -EIO;
+                result = writeResult.load();
                 writeResult.store(-1);
-                break;
+
+                if (result == FrameAck)
+                    break;
             } else {
                 result = -ETIME;
             }
