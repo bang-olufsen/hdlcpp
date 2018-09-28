@@ -24,21 +24,21 @@
 #include "turtle/catch.hpp"
 
 #define private public
-#include "Yahdlc.hpp"
+#include "Hdlcpp.hpp"
 
-class YahdlcFixture {
+class HdlcppFixture {
 public:
-    YahdlcFixture()
+    HdlcppFixture()
     {
-        yahdlc = std::make_shared<Yahdlc::Yahdlc>(
-            std::bind(&YahdlcFixture::transportRead, this, std::placeholders::_1, std::placeholders::_2),
-            std::bind(&YahdlcFixture::transportWrite, this, std::placeholders::_1, std::placeholders::_2),
+        hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
+            std::bind(&HdlcppFixture::transportRead, this, std::placeholders::_1, std::placeholders::_2),
+            std::bind(&HdlcppFixture::transportWrite, this, std::placeholders::_1, std::placeholders::_2),
             bufferSize,
             1 // Use a 1 ms timeout to speed up tests
             );
 
         // For testing only execute a single iteration instead of blocking
-        yahdlc->stopped = true;
+        hdlcpp->stopped = true;
     }
 
     int transportRead(unsigned char *data, unsigned short length)
@@ -61,70 +61,70 @@ public:
     const unsigned char frameDataInvalid[7] = { 0x7e, 0xff, 0x12, 0x33, 0x67, 0xf8, 0x7e };
     const unsigned char frameDataDoubleFlagSequence[9] = { 0x7e, 0x7e, 0xff, 0x12, 0x55, 0x36, 0xa3, 0x7e, 0x7e };
 
-    std::shared_ptr<Yahdlc::Yahdlc> yahdlc;
+    std::shared_ptr<Hdlcpp::Hdlcpp> hdlcpp;
     std::vector<unsigned char> readBuffer;
     std::vector<unsigned char> writeBuffer;
     unsigned char buffer[10];
 };
 
-TEST_CASE_METHOD(YahdlcFixture, "Yahdlc test", "[single-file]")
+TEST_CASE_METHOD(HdlcppFixture, "Hdlcpp test", "[single-file]")
 {
     SECTION("Test write with invalid input")
     {
-        REQUIRE(yahdlc->write(buffer, 0) == -EINVAL);
-        REQUIRE(yahdlc->write(nullptr, sizeof(buffer)) == -EINVAL);
+        REQUIRE(hdlcpp->write(buffer, 0) == -EINVAL);
+        REQUIRE(hdlcpp->write(nullptr, sizeof(buffer)) == -EINVAL);
     }
 
     SECTION("Test write with valid 1 byte data input")
     {
-        yahdlc->write(&frameData[3], 1);
+        hdlcpp->write(&frameData[3], 1);
         REQUIRE(std::memcmp(frameData, writeBuffer.data(), sizeof(frameData)) == 0);
     }
 
     SECTION("Test write/read with FlagSequence as data input")
     {
-        yahdlc->write(&yahdlc->FlagSequence, 1);
+        hdlcpp->write(&hdlcpp->FlagSequence, 1);
         // Size should be 1 byte more compared to a 1 byte data frame due to escape of the value
         REQUIRE(writeBuffer.size() == (sizeof(frameData) + 1));
 
         readBuffer = writeBuffer;
 
-        REQUIRE(yahdlc->read(buffer, sizeof(buffer)) == 1);
-        REQUIRE(buffer[0] == yahdlc->FlagSequence);
+        REQUIRE(hdlcpp->read(buffer, sizeof(buffer)) == 1);
+        REQUIRE(buffer[0] == hdlcpp->FlagSequence);
     }
 
     SECTION("Test write/read with ControlEscape as data input")
     {
-        yahdlc->write(&yahdlc->ControlEscape, 1);
+        hdlcpp->write(&hdlcpp->ControlEscape, 1);
         // Size should be 1 byte more compared to a 1 byte data frame due to escape of the value
         REQUIRE(writeBuffer.size() == (sizeof(frameData) + 1));
 
         readBuffer = writeBuffer;
 
-        REQUIRE(yahdlc->read(buffer, sizeof(buffer)) == 1);
-        REQUIRE(buffer[0] == yahdlc->ControlEscape);
+        REQUIRE(hdlcpp->read(buffer, sizeof(buffer)) == 1);
+        REQUIRE(buffer[0] == hdlcpp->ControlEscape);
     }
 
     SECTION("Test read with invalid input")
     {
-        REQUIRE(yahdlc->read(buffer, 0) == -EINVAL);
-        REQUIRE(yahdlc->read(nullptr, sizeof(buffer)) == -EINVAL);
+        REQUIRE(hdlcpp->read(buffer, 0) == -EINVAL);
+        REQUIRE(hdlcpp->read(nullptr, sizeof(buffer)) == -EINVAL);
         // This should fail as the buffer size is configured to less
-        REQUIRE(yahdlc->read(buffer, 256) == -EINVAL);
+        REQUIRE(hdlcpp->read(buffer, 256) == -EINVAL);
 
         readBuffer.assign(frameDataInvalid, frameDataInvalid + sizeof(frameDataInvalid));
-        REQUIRE(yahdlc->read(buffer, sizeof(buffer)) == -EIO);
+        REQUIRE(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
         REQUIRE(std::memcmp(frameNack, writeBuffer.data(), sizeof(frameNack)) == 0);
     }
 
     SECTION("Test read of two valid 1 byte data frames")
     {
         readBuffer.assign(frameData, frameData + sizeof(frameData));
-        REQUIRE(yahdlc->read(buffer, sizeof(buffer)) == 1);
+        REQUIRE(hdlcpp->read(buffer, sizeof(buffer)) == 1);
         REQUIRE(buffer[0] == frameData[3]);
         REQUIRE(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
 
-        REQUIRE(yahdlc->read(buffer, sizeof(buffer)) == 1);
+        REQUIRE(hdlcpp->read(buffer, sizeof(buffer)) == 1);
         REQUIRE(buffer[0] == frameData[3]);
         REQUIRE(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
     }
@@ -133,12 +133,12 @@ TEST_CASE_METHOD(YahdlcFixture, "Yahdlc test", "[single-file]")
     {
         // Add the first 3 bytes to be read
         readBuffer.assign(frameData, frameData + 3);
-        REQUIRE(yahdlc->read(buffer, sizeof(buffer)) == -ENOMSG);
+        REQUIRE(hdlcpp->read(buffer, sizeof(buffer)) == -ENOMSG);
         REQUIRE(writeBuffer.empty());
 
         // Now add the remaining bytes to complete the data frame
         readBuffer.assign(frameData + 3, frameData + sizeof(frameData));
-        REQUIRE(yahdlc->read(buffer, sizeof(buffer)) == 1);
+        REQUIRE(hdlcpp->read(buffer, sizeof(buffer)) == 1);
         REQUIRE(buffer[0] == frameData[3]);
         REQUIRE(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
     }
@@ -146,25 +146,25 @@ TEST_CASE_METHOD(YahdlcFixture, "Yahdlc test", "[single-file]")
     SECTION("Test read of valid 1 byte data frame with double flag sequence")
     {
         readBuffer.assign(frameDataDoubleFlagSequence, frameDataDoubleFlagSequence + sizeof(frameDataDoubleFlagSequence));
-        REQUIRE(yahdlc->read(buffer, sizeof(buffer)) == 1);
+        REQUIRE(hdlcpp->read(buffer, sizeof(buffer)) == 1);
         REQUIRE(buffer[0] == frameData[3]);
         REQUIRE(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
     }
 
     SECTION("Test read of ack frame")
     {
-        yahdlc->writeSequenceNumber = 1;
+        hdlcpp->writeSequenceNumber = 1;
         readBuffer.assign(frameAck, frameAck + sizeof(frameAck));
-        REQUIRE(yahdlc->read(buffer, sizeof(buffer)) == 0);
-        REQUIRE(yahdlc->writeResult == Yahdlc::Yahdlc::FrameAck);
+        REQUIRE(hdlcpp->read(buffer, sizeof(buffer)) == 0);
+        REQUIRE(hdlcpp->writeResult == Hdlcpp::Hdlcpp::FrameAck);
     }
 
     SECTION("Test read of nack frame")
     {
-        yahdlc->writeSequenceNumber = 1;
+        hdlcpp->writeSequenceNumber = 1;
         readBuffer.assign(frameNack, frameNack + sizeof(frameNack));
-        REQUIRE(yahdlc->read(buffer, sizeof(buffer)) == 0);
-        REQUIRE(yahdlc->writeResult == Yahdlc::Yahdlc::FrameNack);
+        REQUIRE(hdlcpp->read(buffer, sizeof(buffer)) == 0);
+        REQUIRE(hdlcpp->writeResult == Hdlcpp::Hdlcpp::FrameNack);
     }
 
     SECTION("Test encode/decode functions with 1 byte data")
@@ -172,10 +172,10 @@ TEST_CASE_METHOD(YahdlcFixture, "Yahdlc test", "[single-file]")
         std::vector<unsigned char> data;
         unsigned short discardBytes = 0;
         unsigned char dataValue = 0x55, encodeSequenceNumber = 3, decodeSequenceNumber = 0;
-        Yahdlc::Yahdlc::Frame encodeFrame = Yahdlc::Yahdlc::FrameData, decodeFrame = Yahdlc::Yahdlc::FrameNack;
+        Hdlcpp::Hdlcpp::Frame encodeFrame = Hdlcpp::Hdlcpp::FrameData, decodeFrame = Hdlcpp::Hdlcpp::FrameNack;
 
-        REQUIRE(yahdlc->encode(encodeFrame, encodeSequenceNumber, &dataValue, sizeof(dataValue), data) > 0);
-        REQUIRE(yahdlc->decode(decodeFrame, decodeSequenceNumber, data, buffer, sizeof(buffer), discardBytes) > 0);
+        REQUIRE(hdlcpp->encode(encodeFrame, encodeSequenceNumber, &dataValue, sizeof(dataValue), data) > 0);
+        REQUIRE(hdlcpp->decode(decodeFrame, decodeSequenceNumber, data, buffer, sizeof(buffer), discardBytes) > 0);
         REQUIRE(encodeFrame == decodeFrame);
         REQUIRE(encodeSequenceNumber == decodeSequenceNumber);
         REQUIRE(buffer[0] == dataValue);

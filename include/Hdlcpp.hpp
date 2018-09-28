@@ -30,20 +30,20 @@
 #include <functional>
 #include <condition_variable>
 
-namespace Yahdlc {
+namespace Hdlcpp {
 
 using TransportRead = std::function<int(unsigned char *, unsigned short)>;
 using TransportWrite = std::function<int(const unsigned char *, unsigned short)>;
 
-class Yahdlc {
+class Hdlcpp {
 public:
-    //! @brief Constructs the Yahdlc instance
+    //! @brief Constructs the Hdlcpp instance
     //! @param read A std::function for reading from the transport layer (e.g. UART)
     //! @param write A std::function for writing to the transport layer (e.g. UART)
     //! @param bufferSize The buffer size to be allocated for encoding/decoding frames
     //! @param timeout The timeout in milliseconds to wait for an ack/nack
     //! @param retries The number of retries in case of timeout
-    Yahdlc(TransportRead read, TransportWrite write, unsigned short bufferSize = 256,
+    Hdlcpp(TransportRead read, TransportWrite write, unsigned short bufferSize = 256,
         unsigned short timeout = 2000, unsigned char retries = 1)
         : transportRead(read)
         , transportWrite(write)
@@ -63,8 +63,8 @@ public:
         writeBuffer.reserve(bufferSize);
     }
 
-    //! @brief Destructs the Yahdlc instance
-    virtual ~Yahdlc() = default;
+    //! @brief Destructs the Hdlcpp instance
+    virtual ~Hdlcpp() = default;
 
     //! @brief Reads decoded data from the transport layer (blocks if TransportRead is blocking)
     //! @param data A pointer to an allocated buffer (should be bigger than max frame length)
