@@ -41,18 +41,18 @@ public:
     //! @param read A std::function for reading from the transport layer (e.g. UART)
     //! @param write A std::function for writing to the transport layer (e.g. UART)
     //! @param bufferSize The buffer size to be allocated for encoding/decoding frames
-    //! @param timeout The timeout in milliseconds to wait for an ack/nack
-    //! @param retries The number of retries in case of timeout
+    //! @param writeTimeout The write timeout in milliseconds to wait for an ack/nack
+    //! @param writeRetries The number of write retries in case of timeout
     Hdlcpp(TransportRead read, TransportWrite write, unsigned short bufferSize = 256,
-        unsigned short timeout = 2000, unsigned char retries = 1)
+        unsigned short writeTimeout = 2000, unsigned char writeRetries = 1)
         : transportRead(read)
         , transportWrite(write)
         , transportReadBuffer(bufferSize)
         , readFrame(FrameNack)
         , readSequenceNumber(0)
         , writeSequenceNumber(0)
-        , writeTimeout(timeout)
-        , writeTries(1 + retries)
+        , writeTimeout(writeTimeout)
+        , writeTries(1 + writeRetries)
         , writeResult(-1)
         , stopped(false)
     {
@@ -98,6 +98,8 @@ public:
                     return result;
                 case FrameAck:
                 case FrameNack:
+                    if (readSequenceNumber != (writeSequenceNumber + 1))
+                        readFrame = FrameNack;
                     writeResult.store(readFrame);
                     condition.notify_one();
                     break;

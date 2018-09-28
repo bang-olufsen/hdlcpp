@@ -1,10 +1,10 @@
 #!/usr/bin/python3
-import serial
+from serial import Serial
 from hdlcpp import Hdlcpp
 
 class HdlcppSerial(Hdlcpp):
     def __init__(self, port, baudrate=115200, bufferSize=256, timeout=2000, retries=1):
-        self.serial = serial.Serial(port, baudrate)
+        self.serial = Serial(port, baudrate)
         super().__init__(self._transportRead, self._transportWrite, bufferSize, timeout, retries)
 
     def _transportRead(self, length):
