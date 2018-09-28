@@ -3,16 +3,7 @@ language: python
 python:
   - "3.6"
 
-addons:
-  coverity_scan:
-    project:
-      name: "bang-olufsen/hdlcpp"
-    notification_email: jfd@bang-olufsen.dk
-    build_command: "cmake -DBUILD_EXTERNAL=1 -DCMAKE_TOOLCHAIN_FILE=cmake/gcc.cmake .; make"
-    branch_pattern: master
-
 before_install:
-  - echo -n | openssl s_client -connect https://scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get update -qq
 
