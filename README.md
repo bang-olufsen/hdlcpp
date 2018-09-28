@@ -2,11 +2,11 @@
 
 [![Build Status](https://travis-ci.org/bang-olufsen/hdlcpp.svg?branch=master)](https://travis-ci.org/bang-olufsen/hdlcpp) [![License](https://img.shields.io/badge/license-MIT_License-blue.svg?style=flat)](LICENSE)
 
-Hdlcpp is a header-only C++11 framing protocol optimized for embedded communication. It is the successor of the [yahdlc](https://github.com/bang-olufsen/yahdlc) implementation written in C. Hdlcpp uses the [HDLC](https://en.wikipedia.org/wiki/High-Level_Data_Link_Control) asynchronous framing format for handling data integrity and retransmissions.
+Hdlcpp is a header-only C++11 framing protocol optimized for embedded communication. It uses the [HDLC](https://en.wikipedia.org/wiki/High-Level_Data_Link_Control) asynchronous framing format for handling data integrity and retransmissions. Hdlcpp is the successor of the [yahdlc](https://github.com/bang-olufsen/yahdlc) implementation written in C.
 
 ## Usage
 
-Hdlcpp requires that a transport read and write function is supplied as e.g. a lambda for the actual data transport (like a standard socket interface). Hereby Hdlcpp can be used for any kind of transport (serial, network etc.). It is also possible to increase the buffer size for encoding/decoding data, write timeout and number of write retries.
+Hdlcpp requires that a transport read and write function is supplied as e.g. a [lambda expression](https://en.cppreference.com/w/cpp/language/lambda) for the actual data transport. Hereby Hdlcpp can be used for any kind of transport (serial, network, CAN bus etc.). It is also possible to increase the buffer size for encoding/decoding data, write timeout and number of write retries when constructing the object.
 
 ```c++
 hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
@@ -15,7 +15,7 @@ hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
     bufferSize, writeTimeout, writeRetries);
 ```
 
-To read and write data using Hdlcpp the read and write functions are used. These could again e.g. be used as lambdas functions to a protocol implementation (layered architecture).
+To read and write data using Hdlcpp the read and write functions are used. These could again e.g. be used as lambdas expressions to a protocol implementation (layered architecture).
 
 ```c++
 protocol = std::make_shared<Protocol>(

@@ -8,9 +8,9 @@ before_install:
   - sudo apt-get update -qq
 
 install:
-  - sudo apt-get install -qq libboost-test-dev lcov python-dev g++-7
+  - sudo apt-get install -qq lcov libboost-test-dev lcov python-dev g++-7
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7
-  - gem install coveralls-lcov
 
 script: 
   - ./build.sh
+  - bash <(curl -s https://codecov.io/bash)

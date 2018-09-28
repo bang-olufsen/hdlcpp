@@ -23,7 +23,6 @@
 #pragma once
 
 #include <mutex>
-#include <atomic>
 #include <cerrno>
 #include <vector>
 #include <chrono>
@@ -100,7 +99,9 @@ public:
                 case FrameNack:
                     if (readSequenceNumber != (writeSequenceNumber + 1))
                         readFrame = FrameNack;
-                    writeResult.store(readFrame);
+
+                    std::lock_guard<std::mutex> lock(conditionMutex);
+                    writeResult = readFrame;
                     condition.notify_one();
                     break;
                 }
@@ -131,12 +132,12 @@ public:
 
         for (int tries = 0; tries < writeTries; tries++) {
             if ((result = writeFrame(FrameData, writeSequenceNumber, data, length)) < 0)
-                break;
+                continue;
 
             const auto timeout = std::chrono::system_clock::now() + writeTimeout;
-            if (condition.wait_until(conditionLock, timeout, [this] { return writeResult.load() >= 0; })) {
-                result = writeResult.load();
-                writeResult.store(-1);
+            if (condition.wait_until(conditionLock, timeout, [this] { return writeResult >= 0; })) {
+                result = writeResult;
+                writeResult = -1;
 
                 if (result == FrameAck)
                     break;
@@ -422,7 +423,7 @@ private:
     int frameStopIndex;
     int sourceIndex;
     int destinationIndex;
-    std::atomic<int> writeResult;
+    int writeResult;
     bool controlEscape;
     bool stopped;
 };
