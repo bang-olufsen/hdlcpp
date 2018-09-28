@@ -8,6 +8,7 @@ popd
 mkdir -p .build-x86; pushd .build-x86
 cmake -DBUILD_EXTERNAL=1 -DCMAKE_TOOLCHAIN_FILE=cmake/gcc.cmake ..; make -j "$(nproc)"
 
+lcov -h
 lcov -q -c -i -d . -o base.info 2>/dev/null
 ctest --verbose
 lcov -q -c -d . -o test.info 2>/dev/null
