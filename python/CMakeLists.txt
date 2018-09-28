@@ -1,0 +1,4 @@
+set(MODULE_NAME pyahdlc)
+
+pybind11_add_module(${MODULE_NAME} Pyahdlc.cpp)
+install(TARGETS ${MODULE_NAME} LIBRARY DESTINATION ${CMAKE_CURRENT_SOURCE_DIR})
