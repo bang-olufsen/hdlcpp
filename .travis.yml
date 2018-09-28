@@ -8,7 +8,7 @@ addons:
     project:
       name: "bang-olufsen/hdlcpp"
     notification_email: jfd@bang-olufsen.dk
-    build_command: "./build.sh"
+    build_command: "cmake -DBUILD_EXTERNAL=1 -DCMAKE_TOOLCHAIN_FILE=cmake/gcc.cmake .; make"
     branch_pattern: master
 
 before_install:
