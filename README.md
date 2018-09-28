@@ -1,8 +1,8 @@
 # yahdlc2 - Yet Another HDLC 2
 
-[![License](https://img.shields.io/badge/license-MIT_License-blue.svg?style=flat)](LICENSE)
+[![Build Status](https://travis-ci.org/bang-olufsen/yahdlc2.svg?branch=master)](https://travis-ci.org/bang-olufsen/yahdlc2) [![License](https://img.shields.io/badge/license-MIT_License-blue.svg?style=flat)](LICENSE)
 
-The Yet Another High-Level Data Link Control 2 implementation is a header-only C++11 framing protocol optimized for embedded communication. It is the successor of the It uses the HDLC asynchronous framing format. For more information see:
+The Yet Another High-Level Data Link Control 2 implementation is a header-only C++17 framing protocol optimized for embedded communication. It is the successor of the previous [yahdlc](https://github.com/bang-olufsen/yahdlc) implementation written in C. It uses the HDLC asynchronous framing format. For more information see:
 
 https://en.wikipedia.org/wiki/High-Level_Data_Link_Control
 
