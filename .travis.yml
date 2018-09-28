@@ -3,8 +3,11 @@ language:
 compiler:
   - gcc
 before_script:
+  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get update -qq
-  - sudo apt-get install -qq libboost-test-dev lcov python-dev
+  - sudo apt-get install -qq libboost-test-dev lcov python-dev g++-7
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7
+  - sudo update-alternatives --config gcc
   - gem install coveralls-lcov
 script: 
   - ./build.sh
