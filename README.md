@@ -8,7 +8,7 @@ Hdlcpp is a header-only C++11 framing protocol optimized for embedded communicat
 
 Hdlcpp requires that a transport read and write function is supplied as e.g. a lambda for the actual data transport (like a standard socket interface). Hereby Hdlcpp can be used for any kind of transport (serial, network etc.). It is also possible to increase the buffer size for encoding/decoding data, write timeout and number of write retries.
 
-```
+```c++
 hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
     [this](unsigned char *data, unsigned short length) { return serial->read(data, length); },
     [this](const unsigned char *data, unsigned short length) { return serial->write(data, length); },
@@ -17,7 +17,7 @@ hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
 
 To read and write data using Hdlcpp the read and write functions are used. These could again e.g. be used as lambdas functions to a protocol implementation (layered architecture).
 
-```
+```c++
 protocol = std::make_shared<Protocol>(
     [this](unsigned char *data, unsigned short length) { return hdlcpp->read(data, length); },
     [this](const unsigned char *data, unsigned short length) { return hdlcpp->write(data, length); });
