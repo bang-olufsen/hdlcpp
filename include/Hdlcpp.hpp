@@ -105,8 +105,9 @@ public:
                     condition.notify_one();
                     break;
                 }
-            } else if (result == -EIO)
+            } else if ((result == -EIO) && (readFrame == FrameData)) {
                 writeFrame(FrameNack, readSequenceNumber, nullptr, 0);
+            }
         } while (!stopped);
 
         return result;
@@ -131,8 +132,8 @@ public:
             writeSequenceNumber = 0;
 
         for (int tries = 0; tries < writeTries; tries++) {
-            if ((result = writeFrame(FrameData, writeSequenceNumber, data, length)) < 0)
-                continue;
+            if ((result = writeFrame(FrameData, writeSequenceNumber, data, length)) <= 0)
+                break;
 
             const auto timeout = std::chrono::system_clock::now() + writeTimeout;
             if (condition.wait_until(conditionLock, timeout, [this] { return writeResult >= 0; })) {
@@ -174,9 +175,8 @@ private:
 
     int encode(Frame &frame, unsigned char &sequenceNumber, const unsigned char *source, unsigned short sourceLength, std::vector<unsigned char> &destination)
     {
-        int i;
         unsigned char value = 0;
-        unsigned short fcs16Value = Fcs16InitValue;
+        unsigned short i, fcs16Value = Fcs16InitValue;
 
         destination.push_back(FlagSequence);
         fcs16Value = fcs16(fcs16Value, AllStationAddress);
@@ -200,7 +200,7 @@ private:
         // Invert the FCS value accordingly to the specification
         fcs16Value ^= 0xFFFF;
 
-        for (i = 0; i < (int)sizeof(fcs16Value); i++) {
+        for (i = 0; i < sizeof(fcs16Value); i++) {
             value = ((fcs16Value >> (8 * i)) & 0xFF);
             escape(value, destination);
         }
@@ -212,9 +212,9 @@ private:
 
     int decode(Frame &frame, unsigned char &sequenceNumber, std::vector<unsigned char> &source, unsigned char *destination, unsigned short destinationLength, unsigned short &discardBytes)
     {
-        int result, controlByteIndex;
+        unsigned short i;
         unsigned char value;
-        unsigned int i;
+        int result, controlByteIndex;
 
         if (!destination || (destinationLength <= 0))
             return -EINVAL;
@@ -338,7 +338,7 @@ private:
     void decodeControlByte(unsigned char value, Frame &frame, unsigned char &sequenceNumber)
     {
         // Check if the frame is a S-frame
-        if (value & (1 << ControlSFrameBit)) {
+        if ((value >> ControlSFrameBit) & 0x1) {
             // Check if S-frame type is a Receive Ready (ACK)
             if (((value >> ControlSFrameTypeBit) & 0x3) == ControlTypeReceiveReady) {
                 frame = FrameAck;
