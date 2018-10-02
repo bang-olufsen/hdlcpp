@@ -23,11 +23,11 @@
 #pragma once
 
 #include <mutex>
+#include <thread>
+#include <atomic>
 #include <cerrno>
 #include <vector>
-#include <chrono>
 #include <functional>
-#include <condition_variable>
 
 namespace Hdlcpp {
 
@@ -43,7 +43,7 @@ public:
     //! @param writeTimeout The write timeout in milliseconds to wait for an ack/nack
     //! @param writeRetries The number of write retries in case of timeout
     Hdlcpp(TransportRead read, TransportWrite write, unsigned short bufferSize = 256,
-        unsigned short writeTimeout = 1000, unsigned char writeRetries = 1)
+        unsigned short writeTimeout = 100, unsigned char writeRetries = 1)
         : transportRead(read)
         , transportWrite(write)
         , transportReadBuffer(bufferSize)
@@ -100,9 +100,7 @@ public:
                     if (readSequenceNumber != (writeSequenceNumber + 1))
                         readFrame = FrameNack;
 
-                    std::lock_guard<std::mutex> lock(conditionMutex);
-                    writeResult = readFrame;
-                    condition.notify_one();
+                    writeResult.store(readFrame);
                     break;
                 }
             } else if ((result == -EIO) && (readFrame == FrameData)) {
@@ -125,7 +123,6 @@ public:
             return -EINVAL;
 
         std::lock_guard<std::mutex> writeLock(writeMutex);
-        std::unique_lock<std::mutex> conditionLock(conditionMutex);
 
         // Sequence number is a 3-bit value
         if (++writeSequenceNumber > 7)
@@ -135,16 +132,17 @@ public:
             if ((result = writeFrame(FrameData, writeSequenceNumber, data, length)) <= 0)
                 break;
 
-            const auto timeout = std::chrono::system_clock::now() + writeTimeout;
-            if (condition.wait_until(conditionLock, timeout, [this] { return writeResult >= 0; })) {
-                result = writeResult;
-                writeResult = -1;
+            for (unsigned short i = 0; i < writeTimeout; i++) {
+                if (writeResult.load() >= 0) {
+                    result = writeResult;
+                    writeResult.store(-1);
+                    return result;
+                }
 
-                if (result == FrameAck)
-                    break;
-            } else {
-                result = -ETIME;
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
+
+            result = -ETIME;
         }
 
         return result;
@@ -186,7 +184,6 @@ private:
         fcs16Value = fcs16(fcs16Value, value);
         escape(value, destination);
 
-        // Only DATA frames should contain data
         if (frame == FrameData) {
             if (!source || (sourceLength <= 0))
                 return -EINVAL;
@@ -253,8 +250,6 @@ private:
                     }
 
                     fcs16Value = fcs16(fcs16Value, value);
-
-                    // Control field is the second byte after the start flag sequence
                     controlByteIndex = frameStartIndex + 2;
 
                     if (sourceIndex == controlByteIndex)
@@ -406,8 +401,6 @@ private:
     const unsigned char AllStationAddress = 0xff;
 
     std::mutex writeMutex;
-    std::mutex conditionMutex;
-    std::condition_variable condition;
     TransportRead transportRead;
     TransportWrite transportWrite;
     std::vector<unsigned char> transportReadBuffer;
@@ -416,14 +409,14 @@ private:
     Frame readFrame;
     unsigned char readSequenceNumber;
     unsigned char writeSequenceNumber;
-    std::chrono::milliseconds writeTimeout;
+    unsigned short writeTimeout;
     unsigned char writeTries;
     unsigned short fcs16Value;
     int frameStartIndex;
     int frameStopIndex;
     int sourceIndex;
     int destinationIndex;
-    int writeResult;
+    std::atomic<int> writeResult;
     bool controlEscape;
     bool stopped;
 };
