@@ -99,7 +99,6 @@ public:
                 case FrameNack:
                     if (readSequenceNumber != (writeSequenceNumber + 1))
                         readFrame = FrameNack;
-
                     writeResult.store(readFrame);
                     break;
                 }
@@ -133,8 +132,7 @@ public:
                 break;
 
             for (unsigned short i = 0; i < writeTimeout; i++) {
-                if (writeResult.load() >= 0) {
-                    result = writeResult;
+                if ((result = writeResult.load()) >= 0) {
                     writeResult.store(-1);
                     return result;
                 }
