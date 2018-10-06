@@ -422,4 +422,4 @@ private:
     bool stopped;
 };
 
-}
+} // namespace Hdlcpp
