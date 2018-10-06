@@ -53,7 +53,7 @@ public:
         , writeTimeout(writeTimeout)
         , writeTries(1 + writeRetries)
         , writeResult(-1)
-        , stopped(false) 
+        , stopped(false)
     {
         resetValues();
 
@@ -97,8 +97,6 @@ public:
                     return result;
                 case FrameAck:
                 case FrameNack:
-                    if (readSequenceNumber != (writeSequenceNumber + 1))
-                        readFrame = FrameNack;
                     writeResult.store(readFrame);
                     break;
                 }
