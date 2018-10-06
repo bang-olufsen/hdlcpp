@@ -19,7 +19,7 @@ PYBIND11_MODULE(phdlcpp, m)
                     return length;
                 },
                 [write](const uint8_t *data, uint16_t length) {
-                    return write(pybind11::bytes(reinterpret_cast<char *>(data), length));
+                    return write(pybind11::bytes(reinterpret_cast<const char *>(data), length));
                 },
                 bufferSize, writeTimeout, writeRetries));
         }))
