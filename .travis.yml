@@ -10,7 +10,7 @@ addons:
      notification_email: jfd@bang-olufsen.dk
      build_command_prepend: cmake -DBUILD_EXTERNAL=1 -DCMAKE_TOOLCHAIN_FILE=cmake/gcc.cmake
      build_command: make
-     branch_pattern: feature/error-handling
+     branch_pattern: error-handling
 
 before_install:
   - echo -n | openssl s_client -connect https://scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
