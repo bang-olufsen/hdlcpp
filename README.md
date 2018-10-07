@@ -10,8 +10,8 @@ Hdlcpp requires that a transport read and write function is supplied as e.g. a [
 
 ```c++
 hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
-    [this](unsigned char *data, unsigned short length) { return serial->read(data, length); },
-    [this](const unsigned char *data, unsigned short length) { return serial->write(data, length); },
+    [this](uint8_t *data, uint16_t length) { return serial->read(data, length); },
+    [this](const uint8_t *data, uint16_t length) { return serial->write(data, length); },
     bufferSize, writeTimeout, writeRetries);
 ```
 
@@ -19,8 +19,8 @@ To read and write data using Hdlcpp the read and write functions are used. These
 
 ```c++
 protocol = std::make_shared<Protocol>(
-    [this](unsigned char *data, unsigned short length) { return hdlcpp->read(data, length); },
-    [this](const unsigned char *data, unsigned short length) { return hdlcpp->write(data, length); });
+    [this](uint8_t *data, uint16_t length) { return hdlcpp->read(data, length); },
+    [this](const uint8_t *data, uint16_t length) { return hdlcpp->write(data, length); });
 ```
 
 ## Python binding

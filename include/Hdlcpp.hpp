@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 
-// Copyright (c) 2018 Bang & Olufsen
+// Copyright (c) 2018 Bang & Olufsen a/s
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -31,8 +31,8 @@
 
 namespace Hdlcpp {
 
-using TransportRead = std::function<int(unsigned char *, unsigned short)>;
-using TransportWrite = std::function<int(const unsigned char *, unsigned short)>;
+using TransportRead = std::function<int(uint8_t *, uint16_t)>;
+using TransportWrite = std::function<int(const uint8_t *, uint16_t)>;
 
 class Hdlcpp {
 public:
@@ -42,8 +42,8 @@ public:
     //! @param bufferSize The buffer size to be allocated for encoding/decoding frames
     //! @param writeTimeout The write timeout in milliseconds to wait for an ack/nack
     //! @param writeRetries The number of write retries in case of timeout
-    Hdlcpp(TransportRead read, TransportWrite write, unsigned short bufferSize = 256,
-        unsigned short writeTimeout = 100, unsigned char writeRetries = 1)
+    Hdlcpp(TransportRead read, TransportWrite write, uint16_t bufferSize = 256,
+        uint16_t writeTimeout = 100, uint8_t writeRetries = 1)
         : transportRead(read)
         , transportWrite(write)
         , transportReadBuffer(bufferSize)
@@ -69,10 +69,10 @@ public:
     //! @param data A pointer to an allocated buffer (should be bigger than max frame length)
     //! @param length The length of the allocated buffer
     //! @return The number of bytes received if positive or an error code from <cerrno>
-    int read(unsigned char *data, unsigned short length)
+    int read(uint8_t *data, uint16_t length)
     {
         int result;
-        unsigned short discardBytes;
+        uint16_t discardBytes;
 
         if (!data || !length || (length > transportReadBuffer.size()))
             return -EINVAL;
@@ -97,8 +97,6 @@ public:
                     return result;
                 case FrameAck:
                 case FrameNack:
-                    if (readSequenceNumber != (writeSequenceNumber + 1))
-                        readFrame = FrameNack;
                     writeResult.store(readFrame);
                     break;
                 }
@@ -114,7 +112,7 @@ public:
     //! @param data A pointer to the data to be sent
     //! @param length The length of the data to be sent
     //! @return The number of bytes sent if positive or an error code from <cerrno>
-    int write(const unsigned char *data, unsigned short length)
+    int write(const uint8_t *data, uint16_t length)
     {
         int result;
 
@@ -131,10 +129,13 @@ public:
             if ((result = writeFrame(FrameData, writeSequenceNumber, data, length)) <= 0)
                 break;
 
-            for (unsigned short i = 0; i < writeTimeout; i++) {
+            for (uint16_t i = 0; i < writeTimeout; i++) {
                 if ((result = writeResult.load()) >= 0) {
                     writeResult.store(-1);
-                    return result;
+                    if (result == FrameAck)
+                        return length;
+                    else
+                        break;
                 }
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -169,10 +170,10 @@ private:
         ControlTypeSelectiveReject,
     };
 
-    int encode(Frame &frame, unsigned char &sequenceNumber, const unsigned char *source, unsigned short sourceLength, std::vector<unsigned char> &destination)
+    int encode(Frame &frame, uint8_t &sequenceNumber, const uint8_t *source, uint16_t sourceLength, std::vector<uint8_t> &destination)
     {
-        unsigned char value = 0;
-        unsigned short i, fcs16Value = Fcs16InitValue;
+        uint8_t value = 0;
+        uint16_t i, fcs16Value = Fcs16InitValue;
 
         destination.push_back(FlagSequence);
         fcs16Value = fcs16(fcs16Value, AllStationAddress);
@@ -205,10 +206,10 @@ private:
         return destination.size();
     }
 
-    int decode(Frame &frame, unsigned char &sequenceNumber, std::vector<unsigned char> &source, unsigned char *destination, unsigned short destinationLength, unsigned short &discardBytes)
+    int decode(Frame &frame, uint8_t &sequenceNumber, const std::vector<uint8_t> &source, uint8_t *destination, uint16_t destinationLength, uint16_t &discardBytes)
     {
-        unsigned short i;
-        unsigned char value;
+        uint16_t i;
+        uint8_t value;
         int result, controlByteIndex;
 
         if (!destination || (destinationLength <= 0))
@@ -279,7 +280,7 @@ private:
         return result;
     }
 
-    int writeFrame(Frame frame, unsigned char sequenceNumber, const unsigned char *data, unsigned short length)
+    int writeFrame(Frame frame, uint8_t sequenceNumber, const uint8_t *data, uint16_t length)
     {
         int result;
 
@@ -291,7 +292,7 @@ private:
         return transportWrite(writeBuffer.data(), writeBuffer.size());
     }
 
-    void escape(char value, std::vector<unsigned char> &destination)
+    void escape(char value, std::vector<uint8_t> &destination)
     {
         if ((value == FlagSequence) || (value == ControlEscape)) {
             destination.push_back(ControlEscape);
@@ -301,9 +302,9 @@ private:
         destination.push_back(value);
     }
 
-    unsigned char encodeControlByte(Frame frame, unsigned char sequenceNumber)
+    uint8_t encodeControlByte(Frame frame, uint8_t sequenceNumber)
     {
-        unsigned char value = 0;
+        uint8_t value = 0;
 
         // For details see: https://en.wikipedia.org/wiki/High-Level_Data_Link_Control
         switch (frame) {
@@ -328,7 +329,7 @@ private:
         return value;
     }
 
-    void decodeControlByte(unsigned char value, Frame &frame, unsigned char &sequenceNumber)
+    void decodeControlByte(uint8_t value, Frame &frame, uint8_t &sequenceNumber)
     {
         // Check if the frame is a S-frame
         if ((value >> ControlSFrameBit) & 0x1) {
@@ -357,9 +358,9 @@ private:
         controlEscape = false;
     }
 
-    unsigned short fcs16(unsigned short fcs16Value, unsigned char value)
+    uint16_t fcs16(uint16_t fcs16Value, uint8_t value)
     {
-        static const unsigned short fcs16ValueTable[256] = { 0x0000, 0x1189, 0x2312, 0x329b,
+        static const uint16_t fcs16ValueTable[256] = { 0x0000, 0x1189, 0x2312, 0x329b,
             0x4624, 0x57ad, 0x6536, 0x74bf, 0x8c48, 0x9dc1, 0xaf5a, 0xbed3, 0xca6c,
             0xdbe5, 0xe97e, 0xf8f7, 0x1081, 0x0108, 0x3393, 0x221a, 0x56a5, 0x472c,
             0x75b7, 0x643e, 0x9cc9, 0x8d40, 0xbfdb, 0xae52, 0xdaed, 0xcb64, 0xf9ff,
@@ -392,24 +393,24 @@ private:
         return (fcs16Value >> 8) ^ fcs16ValueTable[(fcs16Value ^ value) & 0xff];
     }
 
-    const unsigned short Fcs16InitValue = 0xffff;
-    const unsigned short Fcs16GoodValue = 0xf0b8;
-    const unsigned char FlagSequence = 0x7e;
-    const unsigned char ControlEscape = 0x7d;
-    const unsigned char AllStationAddress = 0xff;
+    const uint16_t Fcs16InitValue = 0xffff;
+    const uint16_t Fcs16GoodValue = 0xf0b8;
+    const uint8_t FlagSequence = 0x7e;
+    const uint8_t ControlEscape = 0x7d;
+    const uint8_t AllStationAddress = 0xff;
 
     std::mutex writeMutex;
     TransportRead transportRead;
     TransportWrite transportWrite;
-    std::vector<unsigned char> transportReadBuffer;
-    std::vector<unsigned char> readBuffer;
-    std::vector<unsigned char> writeBuffer;
+    std::vector<uint8_t> transportReadBuffer;
+    std::vector<uint8_t> readBuffer;
+    std::vector<uint8_t> writeBuffer;
     Frame readFrame;
-    unsigned char readSequenceNumber;
-    unsigned char writeSequenceNumber;
-    unsigned short writeTimeout;
-    unsigned char writeTries;
-    unsigned short fcs16Value;
+    uint8_t readSequenceNumber;
+    uint8_t writeSequenceNumber;
+    uint16_t writeTimeout;
+    uint8_t writeTries;
+    uint16_t fcs16Value;
     int frameStartIndex;
     int frameStopIndex;
     int sourceIndex;
@@ -418,4 +419,5 @@ private:
     bool controlEscape;
     bool stopped;
 };
-}
+
+} // namespace Hdlcpp
