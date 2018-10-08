@@ -132,10 +132,10 @@ public:
             for (uint16_t i = 0; i < writeTimeout; i++) {
                 if ((result = writeResult.load()) >= 0) {
                     writeResult.store(-1);
-                    if (result == FrameAck)
-                        return length;
-                    else
+                    if (result == FrameNack)
                         break;
+
+                    return length;
                 }
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
