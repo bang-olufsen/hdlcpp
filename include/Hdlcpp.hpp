@@ -50,7 +50,6 @@ public:
         , readFrame(FrameNack)
         , readSequenceNumber(0)
         , writeSequenceNumber(0)
-        , lastReadSequenceNumber(0)
         , writeTimeout(writeTimeout)
         , writeTries(1 + writeRetries)
         , writeResult(-1)
@@ -94,13 +93,7 @@ public:
                 case FrameData:
                     if (++readSequenceNumber > 7)
                         readSequenceNumber = 0;
-
                     writeFrame(FrameAck, readSequenceNumber, nullptr, 0);
-                    // Ignore any duplicated frames due to retransmissions
-                    if (readSequenceNumber == lastReadSequenceNumber)
-                        break;
-
-                    lastReadSequenceNumber = readSequenceNumber;
                     return result;
                 case FrameAck:
                 case FrameNack:
@@ -132,7 +125,7 @@ public:
         if (++writeSequenceNumber > 7)
             writeSequenceNumber = 0;
 
-        for (int tries = 0; tries < writeTries; tries++) {
+        for (uint8_t tries = 0; tries < writeTries; tries++) {
             if ((result = writeFrame(FrameData, writeSequenceNumber, data, length)) <= 0)
                 break;
 
@@ -415,7 +408,6 @@ private:
     Frame readFrame;
     uint8_t readSequenceNumber;
     uint8_t writeSequenceNumber;
-    uint8_t lastReadSequenceNumber;
     uint16_t writeTimeout;
     uint8_t writeTries;
     uint16_t fcs16Value;
