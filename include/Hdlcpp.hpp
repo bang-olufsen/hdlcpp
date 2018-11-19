@@ -184,7 +184,7 @@ private:
         escape(value, destination);
 
         if (frame == FrameData) {
-            if (!source || (sourceLength <= 0))
+            if (!source || !sourceLength)
                 return -EINVAL;
 
             for (i = 0; i < sourceLength; i++) {
@@ -212,7 +212,7 @@ private:
         uint8_t value;
         int result, controlByteIndex;
 
-        if (!destination || (destinationLength <= 0))
+        if (!destination || !destinationLength)
             return -EINVAL;
 
         for (i = sourceIndex; i < source.size(); i++) {
