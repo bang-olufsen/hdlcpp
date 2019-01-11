@@ -7,6 +7,9 @@ class HdlcppSerial(Hdlcpp):
         self.serial = Serial(port, baudrate)
         super().__init__(self._transportRead, self._transportWrite, bufferSize, writeTimeout, writeRetries)
 
+    def stop(self):
+        self.serial.cancel_read()
+
     def _transportRead(self, length):
         return self.serial.read(length)
 
