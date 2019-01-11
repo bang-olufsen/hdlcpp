@@ -31,8 +31,8 @@ PYBIND11_MODULE(phdlcpp, m)
                 bytes = 0;
 
             return pybind11::bytes(reinterpret_cast<char *>(data), bytes);
-        })
+        }, pybind11::call_guard<pybind11::gil_scoped_release>())
         .def("write", [](Hdlcpp::Hdlcpp *hdlcpp, char *data, uint16_t length) {
             return hdlcpp->write(reinterpret_cast<uint8_t *>(data), length);
-        });
+        }, pybind11::call_guard<pybind11::gil_scoped_release>());
 }
