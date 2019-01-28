@@ -69,7 +69,7 @@ public:
     //! @param data A pointer to an allocated buffer (should be bigger than max frame length)
     //! @param length The length of the allocated buffer
     //! @return The number of bytes received if positive or an error code from <cerrno>
-    int read(uint8_t *data, uint16_t length)
+    virtual int read(uint8_t *data, uint16_t length)
     {
         int result;
         uint16_t discardBytes;
@@ -112,7 +112,7 @@ public:
     //! @param data A pointer to the data to be sent
     //! @param length The length of the data to be sent
     //! @return The number of bytes sent if positive or an error code from <cerrno>
-    int write(const uint8_t *data, uint16_t length)
+    virtual int write(const uint8_t *data, uint16_t length)
     {
         int result;
 
