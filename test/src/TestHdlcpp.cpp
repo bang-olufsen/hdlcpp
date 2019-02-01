@@ -9,8 +9,8 @@ public:
     HdlcppFixture()
     {
         hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
-            std::bind(&HdlcppFixture::transportRead, this, std::placeholders::_1, std::placeholders::_2),
-            std::bind(&HdlcppFixture::transportWrite, this, std::placeholders::_1, std::placeholders::_2),
+            [this](uint8_t *data, uint16_t length) { return transportRead(data, length); },
+            [this](const uint8_t *data, uint16_t length) { return transportWrite(data, length); },
             bufferSize,
             1 // Use a 1 ms timeout to speed up tests
             );
@@ -124,6 +124,38 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
     SECTION("Test read of valid 1 byte data frame with double flag sequence")
     {
         readBuffer.assign(frameDataDoubleFlagSequence, frameDataDoubleFlagSequence + sizeof(frameDataDoubleFlagSequence));
+        REQUIRE(hdlcpp->read(buffer, sizeof(buffer)) == 1);
+        REQUIRE(buffer[0] == frameData[3]);
+        REQUIRE(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
+    }
+
+    SECTION("Test read of two partial data frames")
+    {
+        readBuffer.assign(frameData, frameData + sizeof(frameData)); // One complete frame
+        readBuffer.insert(readBuffer.end(), frameData, frameData + 3); // A partial frame
+        REQUIRE(hdlcpp->read(buffer, sizeof(buffer)) == 1);
+        REQUIRE(buffer[0] == frameData[3]);
+        REQUIRE(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
+
+        readBuffer.assign(frameData + 3, frameData + sizeof(frameData));
+        REQUIRE(hdlcpp->read(buffer, sizeof(buffer)) == 1);
+        REQUIRE(buffer[0] == frameData[3]);
+        REQUIRE(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
+    }
+
+    SECTION("Test read of two complete data frames")
+    {
+        readBuffer.assign(frameData, frameData + sizeof(frameData));
+        readBuffer.insert(readBuffer.end(), frameData, frameData + sizeof(frameData));
+
+        // Read first frame
+        REQUIRE(hdlcpp->read(buffer, sizeof(buffer)) == 1);
+        REQUIRE(buffer[0] == frameData[3]);
+        REQUIRE(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
+
+        readBuffer.clear();
+        
+        // This must read the second frame without reading from transport layer
         REQUIRE(hdlcpp->read(buffer, sizeof(buffer)) == 1);
         REQUIRE(buffer[0] == frameData[3]);
         REQUIRE(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
