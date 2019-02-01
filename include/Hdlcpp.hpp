@@ -78,12 +78,26 @@ public:
             return -EINVAL;
 
         do {
-            if ((result = transportRead(transportReadBuffer.data(), length)) <= 0)
-                return result;
+            bool doTransportRead{true};
+            if (!readBuffer.empty()) {
+                // Try to decode the readBuffer before potentially blocking
+                // in the transportRead.
+                // Reason: There could be a complete frame in the buffer
+                result = decode(readFrame, readSequenceNumber, readBuffer, data, length, discardBytes);
+                if (result >= 0) {
+                    // Valid frame
+                    doTransportRead = false;
+                }
+            }
 
-            // Insert the read data into the readBuffer for easier manipulation (e.g. erase)
-            readBuffer.insert(readBuffer.end(), transportReadBuffer.begin(), transportReadBuffer.begin() + result);
-            result = decode(readFrame, readSequenceNumber, readBuffer, data, length, discardBytes);
+            if (doTransportRead) {
+                if ((result = transportRead(transportReadBuffer.data(), length)) <= 0)
+                    return result;
+
+                // Insert the read data into the readBuffer for easier manipulation (e.g. erase)
+                readBuffer.insert(readBuffer.end(), transportReadBuffer.begin(), transportReadBuffer.begin() + result);
+                result = decode(readFrame, readSequenceNumber, readBuffer, data, length, discardBytes);
+            }
 
             if (discardBytes > 0)
                 readBuffer.erase(readBuffer.begin(), readBuffer.begin() + discardBytes);
@@ -229,13 +243,8 @@ private:
                 }
             } else {
                 if (source[i] == FlagSequence) {
-                    // Check if an additional flag sequence byte is present or earlier received
-                    if (((i < (source.size() - 1)) && (source[i + 1] == FlagSequence))
-                        || ((frameStartIndex + 1) == sourceIndex)) {
-                        // Just loop again to silently discard it (accordingly to HDLC)
-                        continue;
-                    }
-
+                    // This is a stop flag. Don't remove additional flags here,
+                    // as it could be the begining of a new frame.
                     frameStopIndex = sourceIndex;
                     break;
                 } else if (source[i] == ControlEscape) {
