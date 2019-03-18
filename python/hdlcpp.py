@@ -10,3 +10,6 @@ class Hdlcpp:
 
     def write(self, data, length):
         return self.hdlcpp.write(data, length)
+
+    def close(self):
+        return self.hdlcpp.close()

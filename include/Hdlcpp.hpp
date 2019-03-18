@@ -117,7 +117,7 @@ public:
             } else if ((result == -EIO) && (readFrame == FrameData)) {
                 writeFrame(FrameNack, readSequenceNumber, nullptr, 0);
             }
-        } while (!stopped);
+        } while (!stopped.load());
 
         return result;
     }
@@ -159,6 +159,11 @@ public:
         }
 
         return result;
+    }
+
+    //! @brief Closes the reading
+    virtual void close() {
+        stopped.store(true);
     }
 
 private:
@@ -425,8 +430,8 @@ private:
     int sourceIndex;
     int destinationIndex;
     std::atomic<int> writeResult;
+    std::atomic<bool> stopped;
     bool controlEscape;
-    bool stopped;
 };
 
 } // namespace Hdlcpp
