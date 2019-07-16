@@ -152,13 +152,38 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
         CHECK(buffer[0] == frameData[3]);
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
+        int expectedSequenceNumber = (hdlcpp->readSequenceNumber + 1) % 8;
 
         readBuffer.clear();
         
+        REQUIRE(hdlcpp->readSequenceNumber == expectedSequenceNumber);
         // This must read the second frame without reading from transport layer
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
         CHECK(buffer[0] == frameData[3]);
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
+    }
+
+    SECTION("Test sequence number must increment - skip messages with wrong sequence number - resend ACK")
+    {
+        readBuffer.assign(frameData, frameData + sizeof(frameData));
+
+        // Read first frame
+        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
+        CHECK(buffer[0] == frameData[3]);
+        CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
+        int expectedSequenceNumber = hdlcpp->readSequenceNumber;
+
+        readBuffer.clear();
+
+        for(int i = 0; i < 8; i++){
+            if(i == expectedSequenceNumber)
+                continue;
+
+            //TODO: generate me!
+            REQUIRE(hdlcpp->readSequenceNumber != expectedSequenceNumber);
+            // Make sure you don't get any frame
+            CHECK(hdlcpp->read(buffer, sizeof(buffer)) != 1);
+        }
     }
 
     SECTION("Test read of ack frame")
