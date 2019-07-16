@@ -194,12 +194,32 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         CHECK(hdlcpp->writeResult == Hdlcpp::Hdlcpp::FrameAck);
     }
 
+    SECTION("Test assume message as sent on receiving correct ack sequence number")
+    {
+        //TODO: add test
+    }
+
+    SECTION("Test don't ack current message until correct sequence number ack is received")
+    {
+        //TODO: add test
+    }
+
     SECTION("Test read of nack frame")
     {
         hdlcpp->writeSequenceNumber = 1;
         readBuffer.assign(frameNack, frameNack + sizeof(frameNack));
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 0);
         CHECK(hdlcpp->writeResult == Hdlcpp::Hdlcpp::FrameNack);
+    }
+
+    SECTION("Test resending message on nack frame")
+    {
+        //TODO: add test
+    }
+
+    SECTION("Test don't resend message on nack if sequence counter doesn't match")
+    {
+        //TODO: add test
     }
 
     SECTION("Test encode/decode functions with 1 byte data")
