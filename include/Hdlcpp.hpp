@@ -140,12 +140,12 @@ public:
             writeSequenceNumber = 0;
 
         for (uint8_t tries = 0; tries < writeTries; tries++) {
+            writeResult.store(-1);
             if ((result = writeFrame(FrameData, writeSequenceNumber, data, length)) <= 0)
                 break;
 
             for (uint16_t i = 0; i < writeTimeout; i++) {
-                if ((result = writeResult.load()) >= 0) {
-                    writeResult.store(-1);
+                if ((result = atomic_exchange(&writeResult, -1)) >= 0) {
                     if (result == FrameNack)
                         break;
 
