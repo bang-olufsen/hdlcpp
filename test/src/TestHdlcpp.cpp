@@ -241,4 +241,18 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         hdlcpp->close();
         CHECK(hdlcpp->stopped);
     }
+
+    SECTION("Test sync sending sequence counter")
+    {
+        //TODO: In case when one of sides get restarted it has to resync sequence counter
+        //      Idea is to on first sending package wait for NACK and use sequence counter
+        //      from NACK and resend first package
+    }
+
+    SECTION("Test sync receiving sequence counter")
+    {
+        //TODO: In case when one of sides get restarted it has to resync sequence counter
+        //      Idea is to on first receiving package store current sequence number and use
+        //      it for validating next packages
+    }
 }
