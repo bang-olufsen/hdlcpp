@@ -111,7 +111,7 @@ public:
                     return result;
                 case FrameAck:
                 case FrameNack:
-                    writeResult.store(readFrame);
+                    writeResult = readFrame;
                     break;
                 }
             } else if ((result == -EIO) && (readFrame == FrameData)) {
@@ -140,12 +140,13 @@ public:
             writeSequenceNumber = 0;
 
         for (uint8_t tries = 0; tries < writeTries; tries++) {
+            writeResult = -1;
             if ((result = writeFrame(FrameData, writeSequenceNumber, data, length)) <= 0)
                 break;
 
             for (uint16_t i = 0; i < writeTimeout; i++) {
-                if ((result = writeResult.load()) >= 0) {
-                    writeResult.store(-1);
+                result = writeResult;
+                if (result >= 0) {
                     if (result == FrameNack)
                         break;
 
