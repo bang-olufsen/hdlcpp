@@ -90,7 +90,7 @@ public:
             if (doTransportRead) {
                 if ((result = transportRead(transportReadBuffer.data(), length)) <= 0)
                     return result;
-                
+
                 // Insert the read data into the readBuffer for easier manipulation (e.g. erase)
                 readBuffer.insert(readBuffer.end(), transportReadBuffer.begin(), transportReadBuffer.begin() + result);
                 result = decode(readFrame, readSequenceNumber, readBuffer, data, length, discardBytes);
