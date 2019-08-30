@@ -90,7 +90,7 @@ public:
             if (doTransportRead) {
                 if ((result = transportRead(transportReadBuffer.data(), length)) <= 0)
                     return result;
-
+                
                 // Insert the read data into the readBuffer for easier manipulation (e.g. erase)
                 readBuffer.insert(readBuffer.end(), transportReadBuffer.begin(), transportReadBuffer.begin() + result);
                 result = decode(readFrame, readSequenceNumber, readBuffer, data, length, discardBytes);
@@ -233,7 +233,7 @@ private:
         if (!destination || !destinationLength)
             return -EINVAL;
 
-        for (i = 0; i < source.size(); i++) {
+        for (i = sourceIndex; i < source.size(); i++) {
             // First find the start flag sequence
             if (frameStartIndex < 0) {
                 if (source[i] == FlagSequence) {
