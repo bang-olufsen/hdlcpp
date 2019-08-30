@@ -80,12 +80,9 @@ public:
         do {
             bool doTransportRead{true};
             if (!readBuffer.empty()) {
-                // Try to decode the readBuffer before potentially blocking
-                // in the transportRead.
-                // Reason: There could be a complete frame in the buffer
+                // Try to decode the readBuffer before potentially blocking in the transportRead
                 result = decode(readFrame, readSequenceNumber, readBuffer, data, length, discardBytes);
                 if (result >= 0) {
-                    // Valid frame
                     doTransportRead = false;
                 }
             }
@@ -99,8 +96,9 @@ public:
                 result = decode(readFrame, readSequenceNumber, readBuffer, data, length, discardBytes);
             }
 
-            if (discardBytes > 0)
+            if (discardBytes > 0) {
                 readBuffer.erase(readBuffer.begin(), readBuffer.begin() + discardBytes);
+            }
 
             if (result >= 0) {
                 switch (readFrame) {
@@ -235,7 +233,7 @@ private:
         if (!destination || !destinationLength)
             return -EINVAL;
 
-        for (i = sourceIndex; i < source.size(); i++) {
+        for (i = 0; i < source.size(); i++) {
             // First find the start flag sequence
             if (frameStartIndex < 0) {
                 if (source[i] == FlagSequence) {
@@ -249,8 +247,12 @@ private:
                 }
             } else {
                 if (source[i] == FlagSequence) {
-                    // This is a stop flag. Don't remove additional flags here,
-                    // as it could be the begining of a new frame.
+                    // Check for end flag sequence
+                    if (((i < (source.size() - 1)) && (source[i + 1] == FlagSequence)) || ((frameStartIndex + 1) == sourceIndex)) {
+                        // Just loop again to silently discard it (accordingly to HDLC)
+                        continue;
+                    }
+
                     frameStopIndex = sourceIndex;
                     break;
                 } else if (source[i] == ControlEscape) {
@@ -266,10 +268,11 @@ private:
                     fcs16Value = fcs16(fcs16Value, value);
                     controlByteIndex = frameStartIndex + 2;
 
-                    if (sourceIndex == controlByteIndex)
+                    if (sourceIndex == controlByteIndex) {
                         decodeControlByte(value, frame, sequenceNumber);
-                    else if (sourceIndex > (controlByteIndex))
+                    } else if (sourceIndex > controlByteIndex) {
                         destination[destinationIndex++] = value;
+                    } 
                 }
             }
             sourceIndex++;
@@ -280,15 +283,14 @@ private:
             discardBytes = 0;
             result = -ENOMSG;
         } else {
-            // Dicard one additional byte as the data index starts at 0
-            discardBytes = i + 1;
-
             // A frame is at least 4 bytes in size and has a valid FCS value
-            if ((frameStopIndex >= (frameStartIndex + 4)) && (fcs16Value == Fcs16GoodValue))
+            if ((frameStopIndex >= (frameStartIndex + 4)) && (fcs16Value == Fcs16GoodValue)) {
                 result = destinationIndex - sizeof(fcs16Value);
-            else
+            } else {
                 result = -EIO;
+            }
 
+            discardBytes = i;
             resetValues();
         }
 
