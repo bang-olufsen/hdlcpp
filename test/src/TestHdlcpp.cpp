@@ -138,6 +138,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
 
         readBuffer.assign(frameData + 3, frameData + sizeof(frameData));
+        // First iteration will fail as we are trying to decode a partial frame (unit test is only one iteration)
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
         CHECK(buffer[0] == frameData[3]);
