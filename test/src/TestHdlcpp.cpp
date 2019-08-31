@@ -138,6 +138,8 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
 
         readBuffer.assign(frameData + 3, frameData + sizeof(frameData));
+        // First iteration will fail as we are trying to decode a partial frame (unit test is only one iteration)
+        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
         CHECK(buffer[0] == frameData[3]);
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
@@ -195,5 +197,35 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
     {
         hdlcpp->close();
         CHECK(hdlcpp->stopped);
+    }
+
+    SECTION("Test lockup scenario")
+    {
+        // Frames captured from lockup scenario
+        const uint8_t frame1[] = { 0x7e, 0xff, 0x12, 0x12, 0x00, 0x00, 0xaf, 0x7e };
+        const uint8_t frame2[] = { 0x7e, 0xff, 0x14, 0x4a, 0x07, 0x0a, 0x7e, 0xff, 0x14 };
+        const uint8_t frame3[] = { 0x4a, 0x07, 0x0a, 0x01, 0x00, 0x10, 0x01, 0x20, 0x64, 0xca, 0x51, 0x7e };
+        const uint8_t frame4[] = { 0x7e, 0xff, 0x14 };
+        const uint8_t frame5[] = { 0x4a, 0x07, 0x0a, 0x01, 0x00, 0x10, 0x01, 0x20, 0x64, 0xca };
+        const uint8_t frame6[] = { 0x51, 0x7e };
+        const uint8_t frame7[] = { 0x7e, 0xff, 0x21, 0x0c, 0xc0, 0x7e };
+
+        readBuffer.assign(frame1, frame1 + sizeof(frame1));
+        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 2);
+        readBuffer.assign(frame2, frame2 + sizeof(frame2));
+        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
+        readBuffer.assign(frame3, frame3 + sizeof(frame3));
+        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
+        readBuffer.assign(frame4, frame4 + sizeof(frame4));
+        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 9);
+        readBuffer.assign(frame5, frame5 + sizeof(frame5));
+        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -ENOMSG);
+        readBuffer.assign(frame6, frame6 + sizeof(frame6));
+        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
+        readBuffer.assign(frame7, frame7 + sizeof(frame7));
+        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 0);
+        // Check that the initial frame can still be decoded successfully
+        readBuffer.assign(frame1, frame1 + sizeof(frame1));
+        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 2);
     }
 }
