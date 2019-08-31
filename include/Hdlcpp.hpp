@@ -247,12 +247,13 @@ private:
                 }
             } else {
                 if (source[i] == FlagSequence) {
+#if 0
                     // Check for end flag sequence
-                    if (((i < (source.size() - 1)) && (source[i + 1] == FlagSequence)) || ((frameStartIndex + 1) == sourceIndex)) {
+                    if ((i < (source.size() - 1)) && (source[i + 1] == FlagSequence)) {
                         // Just loop again to silently discard it (accordingly to HDLC)
                         continue;
                     }
-
+#endif
                     frameStopIndex = sourceIndex;
                     break;
                 } else if (source[i] == ControlEscape) {
