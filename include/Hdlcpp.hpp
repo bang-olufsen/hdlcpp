@@ -290,7 +290,7 @@ private:
                 result = -EIO;
             }
 
-            discardBytes = i;
+            discardBytes = i + 1;
             resetValues();
         }
 
