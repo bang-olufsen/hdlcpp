@@ -198,31 +198,13 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         CHECK(hdlcpp->stopped);
     }
 
-    SECTION("Test lockup scenario")
+    SECTION("Test with valid, invalid and valid frame")
     {
-        const uint8_t data0[] = { 0x7e, 0xff, 0x12, 0x12, 0x00, 0x00, 0xaf, 0x7e };
-        const uint8_t data1[] = { 0x7e, 0xff, 0x14, 0x4a, 0x07, 0x0a, 0x7e, 0xff, 0x14 };
-        const uint8_t data2[] = { 0x4a, 0x07, 0x0a, 0x01, 0x00, 0x10, 0x01, 0x20, 0x64, 0xca, 0x51, 0x7e };
-        const uint8_t data3[] = { 0x7e, 0xff, 0x14 };
-        const uint8_t data4[] = { 0x4a, 0x07, 0x0a, 0x01, 0x00, 0x10, 0x01, 0x20, 0x64, 0xca };
-        const uint8_t data5[] = { 0x51, 0x7e };
-        const uint8_t data6[] = { 0x7e, 0xff, 0x21, 0x0c, 0xc0, 0x7e };
-
-        readBuffer.assign(data0, data0 + sizeof(data0));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 2);
-        readBuffer.assign(data1, data1 + sizeof(data1));
+        readBuffer.assign(frameData, frameData + sizeof(frameData));
+        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
+        readBuffer.assign(frameDataInvalid, frameDataInvalid + sizeof(frameDataInvalid));
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
-        readBuffer.assign(data2, data2 + sizeof(data2));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
-        readBuffer.assign(data3, data3 + sizeof(data3));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 9);
-        readBuffer.assign(data4, data4 + sizeof(data4));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -ENOMSG);
-        readBuffer.assign(data5, data5 + sizeof(data5));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
-        readBuffer.assign(data6, data6 + sizeof(data6));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 0);
-        readBuffer.assign(data0, data0 + sizeof(data0));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 2);
+        readBuffer.assign(frameData, frameData + sizeof(frameData));
+        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
     }
 }

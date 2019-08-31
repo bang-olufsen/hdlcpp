@@ -96,10 +96,6 @@ public:
                 result = decode(readFrame, readSequenceNumber, readBuffer, data, length, discardBytes);
             }
 
-            for (size_t i = 0; i < readBuffer.size(); i++)
-                printf("0x%02x ", readBuffer[i]);
-            printf("\n");
-
             if (discardBytes > 0) {
                 readBuffer.erase(readBuffer.begin(), readBuffer.begin() + discardBytes);
             }
@@ -251,13 +247,12 @@ private:
                 }
             } else {
                 if (source[i] == FlagSequence) {
-#if 1
                     // Check for end flag sequence
                     if (((i < (source.size() - 1)) && (source[i + 1] == FlagSequence)) || ((frameStartIndex + 1) == sourceIndex)) {
                         // Just loop again to silently discard it (accordingly to HDLC)
                         continue;
                     }
-#endif
+
                     frameStopIndex = sourceIndex;
                     break;
                 } else if (source[i] == ControlEscape) {
