@@ -138,6 +138,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
 
         readBuffer.assign(frameData + 3, frameData + sizeof(frameData));
+        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
         CHECK(buffer[0] == frameData[3]);
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
@@ -212,9 +213,9 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         readBuffer.assign(data1, data1 + sizeof(data1));
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
         readBuffer.assign(data2, data2 + sizeof(data2));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 9);
+        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
         readBuffer.assign(data3, data3 + sizeof(data3));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -ENOMSG);
+        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 9);
         readBuffer.assign(data4, data4 + sizeof(data4));
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -ENOMSG);
         readBuffer.assign(data5, data5 + sizeof(data5));
@@ -222,7 +223,6 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         readBuffer.assign(data6, data6 + sizeof(data6));
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 0);
         readBuffer.assign(data0, data0 + sizeof(data0));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 2);
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 2);
     }
 }

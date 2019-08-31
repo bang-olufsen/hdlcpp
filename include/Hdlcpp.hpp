@@ -96,6 +96,10 @@ public:
                 result = decode(readFrame, readSequenceNumber, readBuffer, data, length, discardBytes);
             }
 
+            for (size_t i = 0; i < readBuffer.size(); i++)
+                printf("0x%02x ", readBuffer[i]);
+            printf("\n");
+
             if (discardBytes > 0) {
                 readBuffer.erase(readBuffer.begin(), readBuffer.begin() + discardBytes);
             }
@@ -233,7 +237,7 @@ private:
         if (!destination || !destinationLength)
             return -EINVAL;
 
-        for (i = sourceIndex; i < source.size(); i++) {
+        for (i = 0; i < source.size(); i++) {
             // First find the start flag sequence
             if (frameStartIndex < 0) {
                 if (source[i] == FlagSequence) {
@@ -247,9 +251,9 @@ private:
                 }
             } else {
                 if (source[i] == FlagSequence) {
-#if 0
+#if 1
                     // Check for end flag sequence
-                    if ((i < (source.size() - 1)) && (source[i + 1] == FlagSequence)) {
+                    if (((i < (source.size() - 1)) && (source[i + 1] == FlagSequence)) || ((frameStartIndex + 1) == sourceIndex)) {
                         // Just loop again to silently discard it (accordingly to HDLC)
                         continue;
                     }
@@ -291,7 +295,7 @@ private:
                 result = -EIO;
             }
 
-            discardBytes = i + 1;
+            discardBytes = i;
             resetValues();
         }
 
