@@ -233,7 +233,7 @@ private:
         if (!destination || !destinationLength)
             return -EINVAL;
 
-        for (i = sourceIndex; i < source.size(); i++) {
+        for (i = 0; i < source.size(); i++) {
             // First find the start flag sequence
             if (frameStartIndex < 0) {
                 if (source[i] == FlagSequence) {
