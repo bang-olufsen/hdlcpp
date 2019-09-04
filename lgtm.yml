@@ -1,0 +1,8 @@
+extraction:
+  cpp:
+    prepare:
+      packages: 
+        - libboost-test-dev
+    index:
+      build_command:
+        - ./build.sh
