@@ -1,8 +1,7 @@
 extraction:
   cpp:
-    prepare:
-      packages: 
-        - libboost-test-dev
     index:
       build_command:
-        - mkdir -p .build; cd .build; cmake ..; make
+        - mkdir -p .build; cd .build
+        - cmake -DBUILD_TESTING=0 -DCMAKE_TOOLCHAIN_FILE=cmake/gcc.cmake ..
+        - make
