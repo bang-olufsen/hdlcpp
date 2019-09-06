@@ -5,4 +5,4 @@ extraction:
         - libboost-test-dev
     index:
       build_command:
-        - ./build.sh
+        - mkdir -p .build; cd .build; cmake ..; make
