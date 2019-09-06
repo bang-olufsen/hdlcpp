@@ -438,3 +438,4 @@ private:
 };
 
 } // namespace Hdlcpp
+
