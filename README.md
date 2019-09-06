@@ -1,6 +1,6 @@
 # hdlcpp
 
-[![Build Status](https://travis-ci.org/bang-olufsen/hdlcpp.svg?branch=master)](https://travis-ci.org/bang-olufsen/hdlcpp) [![codecov](https://codecov.io/gh/bang-olufsen/hdlcpp/branch/master/graph/badge.svg)](https://codecov.io/gh/bang-olufsen/hdlcpp) [![License](https://img.shields.io/badge/license-MIT_License-blue.svg?style=flat)](LICENSE)
+[![Build Status](https://travis-ci.org/bang-olufsen/hdlcpp.svg?branch=master)](https://travis-ci.org/bang-olufsen/hdlcpp) [![codecov](https://codecov.io/gh/bang-olufsen/hdlcpp/branch/master/graph/badge.svg)](https://codecov.io/gh/bang-olufsen/hdlcpp) [![Total alerts](https://img.shields.io/lgtm/alerts/g/bang-olufsen/hdlcpp.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/bang-olufsen/hdlcpp/alerts/) [![License](https://img.shields.io/badge/license-MIT_License-blue.svg?style=flat)](LICENSE)
 
 Hdlcpp is a header-only C++11 framing protocol optimized for embedded communication. It uses the [HDLC](https://en.wikipedia.org/wiki/High-Level_Data_Link_Control) asynchronous framing format for handling data integrity and retransmissions. Hdlcpp is the successor of the [yahdlc](https://github.com/bang-olufsen/yahdlc) implementation written in C.
 
