@@ -4,8 +4,10 @@ cmake_minimum_required(VERSION 3.1)
 add_library(${PROJECT_NAME} INTERFACE)
 target_include_directories(${PROJECT_NAME} INTERFACE include)
 
-add_library(${PROJECT_NAME}-main src/main.cpp)
-target_include_directories(${PROJECT_NAME}-main PUBLIC include)
+if (BUILD_HDLCPP_MAIN)
+    add_library(${PROJECT_NAME}-main src/main.cpp)
+    target_include_directories(${PROJECT_NAME}-main PUBLIC include)
+endif()
 
 if (BUILD_TESTING)
     if (BUILD_EXTERNAL)
