@@ -290,8 +290,8 @@ private:
                 result = -EIO;
             }
 
-            // Be sure to discard bytes (could be that destinationIndex > i in some cases)
-            discardBytes = destinationIndex > i ? destinationIndex : i;
+            // Be sure to discard bytes (could be that result > i in some cases)
+            discardBytes = result > i ? result : i;
             resetValues();
         }
 
