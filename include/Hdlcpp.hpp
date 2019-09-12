@@ -233,7 +233,7 @@ private:
         if (!destination || !destinationLength)
             return -EINVAL;
 
-        for (i = 0; i < source.size(); i++) {
+        for (i = sourceIndex; i < source.size(); i++) {
             // First find the start flag sequence
             if (frameStartIndex < 0) {
                 if (source[i] == FlagSequence) {
@@ -290,8 +290,7 @@ private:
                 result = -EIO;
             }
 
-            // Be sure to discard bytes (could be that result > i in some cases)
-            discardBytes = result > i ? result : i;
+            discardBytes = i;
             resetValues();
         }
 

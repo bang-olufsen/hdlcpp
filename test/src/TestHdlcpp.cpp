@@ -138,8 +138,6 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
 
         readBuffer.assign(frameData + 3, frameData + sizeof(frameData));
-        // First iteration will fail as we are trying to decode a partial frame (unit test is only one iteration)
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
         CHECK(buffer[0] == frameData[3]);
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
@@ -215,9 +213,9 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         readBuffer.assign(frame2, frame2 + sizeof(frame2));
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
         readBuffer.assign(frame3, frame3 + sizeof(frame3));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
-        readBuffer.assign(frame4, frame4 + sizeof(frame4));
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 9);
+        readBuffer.assign(frame4, frame4 + sizeof(frame4));
+        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -ENOMSG);
         readBuffer.assign(frame5, frame5 + sizeof(frame5));
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -ENOMSG);
         readBuffer.assign(frame6, frame6 + sizeof(frame6));
@@ -227,23 +225,5 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         // Check that the initial frame can still be decoded successfully
         readBuffer.assign(frame1, frame1 + sizeof(frame1));
         CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 2);
-    }
-
-    SECTION("Test duplication scenario")
-    {
-        // Frames captured from duplication scenario
-        const uint8_t frame1[] = { 0x7e, 0xff };
-        const uint8_t frame2[] = { 0x12, 0x4a, 0x07, 0x0a, 0x01, 0x03, 0x18, 0x07, 0x20, 0x64, 0xd5, 0x97 };
-        const uint8_t frame3[] = { 0x7e };
-        const uint8_t frame4[] = { 0x7e, 0xff, 0x61, 0x08, 0x82 };
-
-        readBuffer.assign(frame1, frame1 + sizeof(frame1));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -ENOMSG);
-        readBuffer.assign(frame2, frame2 + sizeof(frame2));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -ENOMSG);
-        readBuffer.assign(frame3, frame3 + sizeof(frame3));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 9);
-        readBuffer.assign(frame4, frame4 + sizeof(frame4));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -ENOMSG);
     }
 }
