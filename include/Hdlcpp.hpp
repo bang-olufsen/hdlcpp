@@ -223,11 +223,11 @@ private:
         uint8_t value = 0;
         bool controlEscape = false;
         uint16_t i, fcs16Value = Fcs16InitValue;
-        int result = -1, controlByteIndex = -1, frameStartIndex = -1, frameStopIndex = -1, destinationIndex = 0;
+        int result = -1, frameStartIndex = -1, frameStopIndex = -1, destinationIndex = 0;
 
         if (!destination || !destinationLength)
             return -EINVAL;
-    
+
         for (i = 0; i < source.size(); i++) {
             // First find the start flag sequence
             if (frameStartIndex < 0) {
@@ -261,7 +261,7 @@ private:
                     }
 
                     fcs16Value = fcs16(fcs16Value, value);
-                    controlByteIndex = frameStartIndex + 2;
+                    int controlByteIndex = frameStartIndex + 2;
 
                     if (i == controlByteIndex) {
                         decodeControlByte(value, frame, sequenceNumber);
