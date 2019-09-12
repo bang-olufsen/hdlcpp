@@ -3,5 +3,5 @@ extraction:
     index:
       build_command:
         - mkdir -p .build; cd .build
-        - cmake -DBUILD_TESTING=0 -DCMAKE_TOOLCHAIN_FILE=cmake/gcc.cmake ..
+        - cmake -DBUILD_HDLCPP_MAIN=1 -DBUILD_TESTING=0 -DCMAKE_TOOLCHAIN_FILE=cmake/gcc.cmake ..
         - make
