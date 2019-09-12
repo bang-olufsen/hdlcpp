@@ -232,7 +232,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
     SECTION("Test duplication scenario")
     {
         // Frames captured from duplication scenario
-        const uint8_t frame1[] = { 0x7e, 0xff  };
+        const uint8_t frame1[] = { 0x7e, 0xff };
         const uint8_t frame2[] = { 0x12, 0x4a, 0x07, 0x0a, 0x01, 0x03, 0x18, 0x07, 0x20, 0x64, 0xd5, 0x97 };
         const uint8_t frame3[] = { 0x7e };
         const uint8_t frame4[] = { 0x7e, 0xff, 0x61, 0x08, 0x82 };
