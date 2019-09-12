@@ -48,15 +48,9 @@ public:
         , transportWrite(write)
         , transportReadBuffer(bufferSize)
         , readFrame(FrameNack)
-        , readSequenceNumber(0)
-        , writeSequenceNumber(0)
         , writeTimeout(writeTimeout)
-        , writeTries(1 + writeRetries)
-        , writeResult(-1)
-        , stopped(false)
+        , writeRetries(writeRetries)
     {
-        resetValues();
-
         // Reserve the specified buffer size to avoid increasing the vector in small chunks (performance)
         readBuffer.reserve(bufferSize);
         writeBuffer.reserve(bufferSize);
@@ -137,7 +131,7 @@ public:
         if (++writeSequenceNumber > 7)
             writeSequenceNumber = 0;
 
-        for (uint8_t tries = 0; tries < writeTries; tries++) {
+        for (uint8_t tries = 0; tries <= writeRetries; tries++) {
             writeResult = -1;
             if ((result = writeFrame(FrameData, writeSequenceNumber, data, length)) <= 0)
                 break;
@@ -226,14 +220,15 @@ private:
 
     int decode(Frame &frame, uint8_t &sequenceNumber, const std::vector<uint8_t> &source, uint8_t *destination, uint16_t destinationLength, uint16_t &discardBytes)
     {
-        uint16_t i;
-        uint8_t value;
-        int result, controlByteIndex;
+        uint8_t value = 0;
+        bool controlEscape = false;
+        uint16_t i, fcs16Value = Fcs16InitValue;
+        int result = -1, controlByteIndex = -1, frameStartIndex = -1, frameStopIndex = -1, destinationIndex = 0;
 
         if (!destination || !destinationLength)
             return -EINVAL;
-
-        for (i = sourceIndex; i < source.size(); i++) {
+    
+        for (i = 0; i < source.size(); i++) {
             // First find the start flag sequence
             if (frameStartIndex < 0) {
                 if (source[i] == FlagSequence) {
@@ -243,17 +238,17 @@ private:
                         continue;
                     }
 
-                    frameStartIndex = sourceIndex;
+                    frameStartIndex = i;
                 }
             } else {
                 if (source[i] == FlagSequence) {
                     // Check for end flag sequence
-                    if (((i < (source.size() - 1)) && (source[i + 1] == FlagSequence)) || ((frameStartIndex + 1) == sourceIndex)) {
+                    if (((i < (source.size() - 1)) && (source[i + 1] == FlagSequence)) || ((frameStartIndex + 1) == i)) {
                         // Just loop again to silently discard it (accordingly to HDLC)
                         continue;
                     }
 
-                    frameStopIndex = sourceIndex;
+                    frameStopIndex = i;
                     break;
                 } else if (source[i] == ControlEscape) {
                     controlEscape = true;
@@ -268,14 +263,13 @@ private:
                     fcs16Value = fcs16(fcs16Value, value);
                     controlByteIndex = frameStartIndex + 2;
 
-                    if (sourceIndex == controlByteIndex) {
+                    if (i == controlByteIndex) {
                         decodeControlByte(value, frame, sequenceNumber);
-                    } else if (sourceIndex > controlByteIndex) {
+                    } else if (i > controlByteIndex) {
                         destination[destinationIndex++] = value;
                     } 
                 }
             }
-            sourceIndex++;
         }
 
         // Check for invalid frame (no start or end flag sequence)
@@ -291,7 +285,6 @@ private:
             }
 
             discardBytes = i;
-            resetValues();
         }
 
         return result;
@@ -367,14 +360,6 @@ private:
         }
     }
 
-    void resetValues()
-    {
-        fcs16Value = Fcs16InitValue;
-        frameStartIndex = frameStopIndex = -1;
-        sourceIndex = destinationIndex = 0;
-        controlEscape = false;
-    }
-
     uint16_t fcs16(uint16_t fcs16Value, uint8_t value)
     {
         static const uint16_t fcs16ValueTable[256] = { 0x0000, 0x1189, 0x2312, 0x329b,
@@ -423,18 +408,12 @@ private:
     std::vector<uint8_t> readBuffer;
     std::vector<uint8_t> writeBuffer;
     Frame readFrame;
-    uint8_t readSequenceNumber;
-    uint8_t writeSequenceNumber;
     uint16_t writeTimeout;
-    uint8_t writeTries;
-    uint16_t fcs16Value;
-    int frameStartIndex;
-    int frameStopIndex;
-    int sourceIndex;
-    int destinationIndex;
-    std::atomic<int> writeResult;
-    std::atomic<bool> stopped;
-    bool controlEscape;
+    uint8_t writeRetries;
+    uint8_t readSequenceNumber{ 0 };
+    uint8_t writeSequenceNumber{ 0 };
+    std::atomic<int> writeResult{ -1 };
+    std::atomic<bool> stopped{ false };
 };
 
 } // namespace Hdlcpp
