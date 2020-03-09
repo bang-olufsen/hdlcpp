@@ -109,7 +109,7 @@ public:
             } else if ((result == -EIO) && (readFrame == FrameData)) {
                 writeFrame(FrameNack, readSequenceNumber, nullptr, 0);
             }
-        } while (!stopped.load());
+        } while (!stopped);
 
         return result;
     }
@@ -156,7 +156,7 @@ public:
 
     //! @brief Closes the reading
     virtual void close() {
-        stopped.store(true);
+        stopped = true;
     }
 
 private:
