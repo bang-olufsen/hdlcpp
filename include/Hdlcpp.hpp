@@ -222,18 +222,18 @@ private:
     {
         uint8_t value = 0;
         bool controlEscape = false;
-        uint16_t i, fcs16Value = Fcs16InitValue;
+        uint16_t i, fcs16Value = Fcs16InitValue, sourceSize = source.size();
         int result = -1, frameStartIndex = -1, frameStopIndex = -1, destinationIndex = 0;
 
         if (!destination || !destinationLength)
             return -EINVAL;
 
-        for (i = 0; i < static_cast<uint16_t>(source.size()); i++) {
+        for (i = 0; i < sourceSize; i++) {
             // First find the start flag sequence
             if (frameStartIndex < 0) {
                 if (source[i] == FlagSequence) {
                     // Check if an additional flag sequence byte is present
-                    if ((i < (source.size() - 1)) && (source[i + 1] == FlagSequence)) {
+                    if ((i < (sourceSize - 1)) && (source[i + 1] == FlagSequence)) {
                         // Just loop again to silently discard it (accordingly to HDLC)
                         continue;
                     }
@@ -243,7 +243,7 @@ private:
             } else {
                 if (source[i] == FlagSequence) {
                     // Check for end flag sequence
-                    if (((i < (source.size() - 1)) && (source[i + 1] == FlagSequence)) || ((frameStartIndex + 1) == i)) {
+                    if (((i < (sourceSize - 1)) && (source[i + 1] == FlagSequence)) || ((frameStartIndex + 1) == i)) {
                         // Just loop again to silently discard it (accordingly to HDLC)
                         continue;
                     }
