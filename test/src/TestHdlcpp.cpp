@@ -1,5 +1,6 @@
+#define CATCH_CONFIG_MAIN
 #include <catch.hpp>
-#include "turtle/catch.hpp"
+#include <cstring>
 
 #define private public
 #include "Hdlcpp.hpp"
