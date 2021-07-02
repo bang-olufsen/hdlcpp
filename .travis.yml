@@ -11,6 +11,6 @@ install:
   - sudo apt-get install -qq lcov libboost-test-dev lcov python-dev g++-7
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7
 
-script: 
+script:
   - ./build.sh coverage
   - bash <(curl -s https://codecov.io/bash) -X gcov -X fix -f .build-x86/coverage.info
