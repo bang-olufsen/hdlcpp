@@ -159,7 +159,7 @@ public:
         stopped = true;
     }
 
-private:
+protected:
     enum Frame {
         FrameData,
         FrameAck,
