@@ -136,6 +136,9 @@ public:
             if ((result = writeFrame(FrameData, writeSequenceNumber, data, length)) <= 0)
                 break;
 
+            if (writeTimeout == 0)
+                break;
+
             for (uint16_t i = 0; i < writeTimeout; i++) {
                 result = writeResult;
                 if (result >= 0) {
