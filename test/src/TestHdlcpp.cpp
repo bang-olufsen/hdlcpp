@@ -1,7 +1,7 @@
 #include <catch.hpp>
 #include "turtle/catch.hpp"
 
-#define private public
+#define protected public
 #include "Hdlcpp.hpp"
 
 class HdlcppFixture {
