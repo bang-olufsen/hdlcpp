@@ -104,7 +104,7 @@ public:
                 case FrameAck:
                 case FrameNack:
                     writeResult = readFrame;
-                    break;
+                    return 0;  // avoid blocking transportRead until FrameData
                 }
             } else if ((result == -EIO) && (readFrame == FrameData)) {
                 writeFrame(FrameNack, readSequenceNumber, nullptr, 0);
