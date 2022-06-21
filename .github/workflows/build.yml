@@ -2,7 +2,6 @@ name: build
 
 env:
   VERSION: ${{ format('{0}.{1}.{2}', 0, 2, github.run_number) }}
-  GITHUB_TOKEN: ${{ secrets._GITHUB_TOKEN }}
 
 on:
   workflow_dispatch:
