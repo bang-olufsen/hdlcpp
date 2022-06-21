@@ -13,6 +13,7 @@ RUN apt-get update \
     cmake \
     ccache \
     git \
+    ssh \
     file \
     sudo \
     libboost-test-dev \
