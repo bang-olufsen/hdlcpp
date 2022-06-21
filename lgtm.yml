@@ -1,6 +1,0 @@
-extraction:
-  cpp:
-    index:
-      build_command:
-        - ./build.sh -m
-        - cd .build
