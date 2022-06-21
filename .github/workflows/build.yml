@@ -22,3 +22,12 @@ jobs:
       run: scripts/build_x86.sh
     - name: Run unit tests
       run: scripts/run_tests.sh
+    - name: Generate coverage
+      run: scripts/coverage.sh
+    - name: Upload coverage report
+      uses: codecov/codecov-action@v2
+      with:
+        files: .build-x86/coverage.xml
+        flags: unittests
+        name: hdlcpp
+        fail_ci_if_error: true
