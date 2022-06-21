@@ -5,6 +5,7 @@ help() {
   echo "Usage: $0 [options]"
   echo "Options:"
   echo "  -b               Build X86"
+  echo "  -m               Build hdlcpp main"
   echo "  -t               Run tests"
   echo "  -o               Run coverage"
   echo "  -e               Build build environment"
@@ -17,9 +18,10 @@ if [ $# -eq 0 ]; then
   help
 fi
 
-while getopts "btoech" option; do
+while getopts "bmtoech" option; do
   case $option in
     b) scripts/build_x86.sh ;;
+    m) scripts/build_main.sh ;;
     t) scripts/run_tests.sh ;;
     o) scripts/coverage.sh ;;
     e) scripts/build_buildenv.sh ;;
