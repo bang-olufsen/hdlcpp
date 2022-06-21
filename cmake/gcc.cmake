@@ -20,7 +20,7 @@ set(COMMON_C_FLAGS
 
 set(COMMON_CXX_FLAGS
     ${COMMON_FLAGS}
-    -std=c++17
+    -std=c++20
 )
 
 string(REPLACE ";" " " CMAKE_COMMON_C_FLAGS "${COMMON_C_FLAGS}")

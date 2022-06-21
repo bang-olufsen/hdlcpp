@@ -1,26 +1,27 @@
 #!/bin/bash
 set -e
 
-mkdir -p .build-external; pushd .build-external
-cmake ../external
-make -j "$(nproc)"
-popd
+help() {
+  echo "Usage: $0 [options]"
+  echo "Options:"
+  echo "  -b               Build X86"
+  echo "  -t               Run tests"
+  echo "  -e               Build build environment"
+  echo "  -c               Clean build"
+  echo "  -h               Print this message and exit"
+  exit 1
+}
 
-mkdir -p .build-x86; pushd .build-x86
-cmake -DBUILD_EXTERNAL=1 -DCMAKE_TOOLCHAIN_FILE=cmake/gcc.cmake ..;
-make -j "$(nproc)"
-sudo make -j "$(nproc)" install
-
-if [ "$1" = "coverage" ]; then
-  rm -f python/Phdlcpp.cpp.gcno
-  lcov -q -c -i -d . -o base.info
-  ctest --verbose
-  lcov -q -c -d . -o test.info 2>/dev/null
-  lcov -q -a base.info -a test.info > total.info
-  lcov -q -r total.info "*usr/include/*" "*CMakeFiles*" "*/test/*" "*Catch2*" "*turtle*" \
-  "*pybind11*" "*python*" -o coverage.info
-  genhtml -o coverage coverage.info
-  echo "Coverage report can be found in $(pwd)/coverage"
+if [ $# -eq 0 ]; then
+  help
 fi
 
-popd
+while getopts "btech" option; do
+  case $option in
+    b) scripts/build_x86.sh ;;
+    t) scripts/run_tests.sh ;;
+    e) scripts/build_buildenv.sh ;;
+    c) scripts/clean.sh ;;
+    *) help ;;
+  esac
+done
