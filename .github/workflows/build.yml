@@ -8,17 +8,17 @@ on:
   workflow_dispatch:
   pull_request:
     branches:
-      - develop
+      - master
 
 jobs:
-  develop:
+  build:
     runs-on: ubuntu-latest
     container:
       image: audiostreamingplatform/hdlcpp:1.0
     steps:
     - name: Clean checkout
       run: |
-        git checkout origin/develop || true
+        git checkout origin/master || true
         ./build.sh -c || true
     - uses: actions/checkout@v2
       with:
