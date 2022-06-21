@@ -10,7 +10,7 @@ on:
       - master
 
 jobs:
-  build:
+  unit-tests:
     runs-on: ubuntu-latest
     container:
       image: audiostreamingplatform/hdlcpp:1.0
@@ -18,10 +18,7 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-        clean: false
-    - name: Clean checkout
-      run: build.sh -c
     - name: Build for X86
-      run: build.sh -b
+      run: scripts/build_x86.sh
     - name: Run unit tests
-      run: build.sh -t
+      run: scripts/run_tests.sh
