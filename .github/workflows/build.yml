@@ -15,14 +15,12 @@ jobs:
     container:
       image: audiostreamingplatform/hdlcpp:1.0
     steps:
-    - name: Clean checkout
-      run: |
-        git checkout origin/master || true
-        ./build.sh -c || true
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
         clean: false
+    - name: Clean checkout
+      run: build.sh -c
     - name: Build for X86
       run: build.sh -b
     - name: Run unit tests
