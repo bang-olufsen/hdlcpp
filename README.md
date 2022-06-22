@@ -33,3 +33,13 @@ The supported HDLC frames are limited to DATA (I-frame with Poll bit), ACK (S-fr
 Acknowledge of frame | Negative acknowledge of frame | Acknowledge of frame lost
 --- | --- | ---
 ![](https://bang-olufsen.gravizo.com/svg?%3B%0A%40startuml%3B%0Ahide%20footbox%3B%0AA%20-%3E%20B:%20DATA%20[sequence%20number%20=%201]%3B%0AB%20-%3E%20A:%20DATA%20[sequence%20number%20=%204]%3B%0AB%20-%3E%20A:%20ACK%20[sequence%20number%20=%202]%3B%0AA%20-%3E%20B:%20ACK%20[sequence%20number%20=%205]%3B%0A%40enduml) | ![](https://bang-olufsen.gravizo.com/svg?%3B%0A%40startuml%3B%0Ahide%20footbox%3B%0AA%20-%3E%20B:%20DATA%20[sequence%20number%20=%201]%3B%0AB%20-%3E%20A:%20NACK%20[sequence%20number%20=%201]%3B%0AA%20-%3E%20B:%20DATA%20[sequence%20number%20=%201]%3B%0A%40enduml) | ![](https://bang-olufsen.gravizo.com/svg?%3B%0A%40startuml%3B%0Ahide%20footbox%3B%0AA%20-%3E%20B:%20DATA%20[sequence%20number%20=%201]%3B%0AB%20-%3Ex%20A:%20ACK%20[sequence%20number%20=%202]%3B%0A...%20Timeout%20...%3B%0AA%20-%3E%20B:%20DATA%20[sequence%20number%20=%201]%3B%0A%40enduml)
+
+## Build and run unit tests
+
+The build setup is configured to be run from the given Docker Container. Tested with a PC running 64 bit Ubuntu. WSL will also work.
+
+* [Clone](https://docs.github.com/en/get-started/getting-started-with-git/about-remote-repositories) this repository.
+* Install Docker: `sudo apt install docker.io`. For WSL follow [this guide](https://docs.microsoft.com/en-us/windows/wsl/tutorials/wsl-containers).
+* Run `./build.sh -h` to see build options.
+
+NOTE: If using remote-containers for ie. VSCode you can open the folder in the container automatically (see `.devcontainer`).
