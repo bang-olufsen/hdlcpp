@@ -1,6 +1,6 @@
-project(hdlcpp)
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.6)
 
+project(hdlcpp VERSION 1.0.0 LANGUAGES CXX)
 add_library(${PROJECT_NAME} INTERFACE)
 
 include(GNUInstallDirs)
@@ -26,6 +26,7 @@ if (BUILD_HDLCPP_MAIN)
 endif()
 
 if (BUILD_TESTING)
+    include(cmake/Externals.cmake)
     include_directories(include)
     if (BUILD_EXTERNAL)
         add_subdirectory(src)

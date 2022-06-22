@@ -1,0 +1,14 @@
+{
+    "name": "hdlcpp",
+    "image": "audiostreamingplatform/hdlcpp:1.0",
+    "remoteUser": "user",
+    "runArgs": [
+        "--privileged",
+        "--network=host",
+        "-v", "${localEnv:HOME}:/home/user"
+    ],
+    "extensions": [
+        "ms-vscode.cpptools",
+        "twxs.cmake"
+    ]
+}
