@@ -18,7 +18,7 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - name: Build for X86
+    - name: Build for x86
       run: scripts/build_x86.sh
     - name: Run unit tests
       run: scripts/run_tests.sh
