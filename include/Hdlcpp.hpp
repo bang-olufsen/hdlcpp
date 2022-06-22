@@ -26,13 +26,14 @@
 #include <thread>
 #include <atomic>
 #include <cerrno>
-#include <vector>
 #include <functional>
+#include <array>
+#include <span>
 
 namespace Hdlcpp {
 
-using TransportRead = std::function<int(uint8_t *, uint16_t)>;
-using TransportWrite = std::function<int(const uint8_t *, uint16_t)>;
+using TransportRead = std::function<int(std::span<uint8_t> buffer)>;
+using TransportWrite = std::function<int(const std::span<const uint8_t> buffer)>;
 
 class Hdlcpp {
 public:
@@ -63,31 +64,31 @@ public:
     //! @param data A pointer to an allocated buffer (should be bigger than max frame length)
     //! @param length The length of the allocated buffer
     //! @return The number of bytes received if positive or an error code from <cerrno>
-    virtual int read(uint8_t *data, uint16_t length)
+    virtual int read(std::span<uint8_t> buffer)
     {
         int result;
         uint16_t discardBytes;
 
-        if (!data || !length || (length > transportReadBuffer.size()))
+        if (!buffer.data() || buffer.empty() || (buffer.size() > transportReadBuffer.size()))
             return -EINVAL;
 
         do {
             bool doTransportRead{true};
             if (!readBuffer.empty()) {
                 // Try to decode the readBuffer before potentially blocking in the transportRead
-                result = decode(readFrame, readSequenceNumber, readBuffer, data, length, discardBytes);
+                result = decode(readFrame, readSequenceNumber, readBuffer, buffer, discardBytes);
                 if (result >= 0) {
                     doTransportRead = false;
                 }
             }
 
             if (doTransportRead) {
-                if ((result = transportRead(transportReadBuffer.data(), length)) <= 0)
+                if ((result = transportRead(transportReadBuffer)) <= 0)
                     return result;
 
                 // Insert the read data into the readBuffer for easier manipulation (e.g. erase)
                 readBuffer.insert(readBuffer.end(), transportReadBuffer.begin(), transportReadBuffer.begin() + result);
-                result = decode(readFrame, readSequenceNumber, readBuffer, data, length, discardBytes);
+                result = decode(readFrame, readSequenceNumber, readBuffer, buffer, discardBytes);
             }
 
             if (discardBytes > 0) {
@@ -99,7 +100,7 @@ public:
                 case FrameData:
                     if (++readSequenceNumber > 7)
                         readSequenceNumber = 0;
-                    writeFrame(FrameAck, readSequenceNumber, nullptr, 0);
+                    writeFrame(FrameAck, readSequenceNumber, {});
                     return result;
                 case FrameAck:
                 case FrameNack:
@@ -107,7 +108,7 @@ public:
                     break;
                 }
             } else if ((result == -EIO) && (readFrame == FrameData)) {
-                writeFrame(FrameNack, readSequenceNumber, nullptr, 0);
+                writeFrame(FrameNack, readSequenceNumber, {});
             }
         } while (!stopped);
 
@@ -118,11 +119,11 @@ public:
     //! @param data A pointer to the data to be sent
     //! @param length The length of the data to be sent
     //! @return The number of bytes sent if positive or an error code from <cerrno>
-    virtual int write(const uint8_t *data, uint16_t length)
+    virtual int write(const std::span<const uint8_t> buffer)
     {
         int result;
 
-        if (!data || !length)
+        if (!buffer.data() || buffer.empty())
             return -EINVAL;
 
         std::lock_guard<std::mutex> writeLock(writeMutex);
@@ -133,7 +134,7 @@ public:
 
         for (uint8_t tries = 0; tries <= writeRetries; tries++) {
             writeResult = -1;
-            if ((result = writeFrame(FrameData, writeSequenceNumber, data, length)) <= 0)
+            if ((result = writeFrame(FrameData, writeSequenceNumber, buffer)) <= 0)
                 break;
 
             if (writeTimeout == 0)
@@ -145,7 +146,7 @@ public:
                     if (result == FrameNack)
                         break;
 
-                    return length;
+                    return buffer.size();
                 }
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -185,7 +186,7 @@ protected:
         ControlTypeSelectiveReject,
     };
 
-    int encode(Frame &frame, uint8_t &sequenceNumber, const uint8_t *source, uint16_t sourceLength, std::vector<uint8_t> &destination)
+    size_t encode(Frame &frame, uint8_t &sequenceNumber, const std::span<const uint8_t> source, std::vector<uint8_t> &destination)
     {
         uint8_t value = 0;
         uint16_t i, fcs16Value = Fcs16InitValue;
@@ -199,12 +200,12 @@ protected:
         escape(value, destination);
 
         if (frame == FrameData) {
-            if (!source || !sourceLength)
+            if (!source.data() || source.empty())
                 return -EINVAL;
 
-            for (i = 0; i < sourceLength; i++) {
-                fcs16Value = fcs16(fcs16Value, source[i]);
-                escape(source[i], destination);
+            for (const auto &byte : source) {
+                fcs16Value = fcs16(fcs16Value, byte);
+                escape(byte, destination);
             }
         }
 
@@ -221,14 +222,14 @@ protected:
         return destination.size();
     }
 
-    int decode(Frame &frame, uint8_t &sequenceNumber, const std::vector<uint8_t> &source, uint8_t *destination, uint16_t destinationLength, uint16_t &discardBytes)
+    int decode(Frame &frame, uint8_t &sequenceNumber, const std::span<uint8_t> source, std::span<uint8_t> destination, uint16_t &discardBytes)
     {
         uint8_t value = 0;
         bool controlEscape = false;
         uint16_t i, fcs16Value = Fcs16InitValue, sourceSize = source.size();
         int result = -1, frameStartIndex = -1, frameStopIndex = -1, destinationIndex = 0;
 
-        if (!destination || !destinationLength)
+        if (!destination.data() || destination.empty())
             return -EINVAL;
 
         for (i = 0; i < sourceSize; i++) {
@@ -270,7 +271,7 @@ protected:
                         decodeControlByte(value, frame, sequenceNumber);
                     } else if (i > controlByteIndex) {
                         destination[destinationIndex++] = value;
-                    } 
+                    }
                 }
             }
         }
@@ -293,19 +294,19 @@ protected:
         return result;
     }
 
-    int writeFrame(Frame frame, uint8_t sequenceNumber, const uint8_t *data, uint16_t length)
+    int writeFrame(Frame frame, uint8_t sequenceNumber, const std::span<const uint8_t> data)
     {
         int result;
 
         writeBuffer.clear();
 
-        if ((result = encode(frame, sequenceNumber, data, length, writeBuffer)) < 0)
+        if ((result = encode(frame, sequenceNumber, data, writeBuffer)) < 0)
             return result;
 
-        return transportWrite(writeBuffer.data(), writeBuffer.size());
+        return transportWrite(writeBuffer);
     }
 
-    void escape(char value, std::vector<uint8_t> &destination)
+    void escape(uint8_t value, std::vector<uint8_t> &destination)
     {
         if ((value == FlagSequence) || (value == ControlEscape)) {
             destination.push_back(ControlEscape);

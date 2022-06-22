@@ -9,8 +9,16 @@ Hdlcpp requires that a transport read and write function is supplied as e.g. a [
 
 ```cpp
 hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
-    [this](uint8_t *data, uint16_t length) { return serial->read(data, length); },
-    [this](const uint8_t *data, uint16_t length) { return serial->write(data, length); },
+    [this](std::span<uint8_t> buffer) { return serial->read(buffer); },
+    [this](const std::span<const uint8_t> buffer) { return serial->write(buffer); },
+    bufferSize, writeTimeout, writeRetries);
+```
+
+In the case where the underlying transport layer does not support `std::span`, the pointer to the first element and the size can be extracted from the span like so.
+```cpp
+hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
+    [this](std::span<uint8_t> buffer) { return serial->read(buffer.data(), buffer.size()); },
+    [this](const std::span<const uint8_t> buffer) { return serial->write(buffer.data(), buffer.size()); },
     bufferSize, writeTimeout, writeRetries);
 ```
 
@@ -18,8 +26,8 @@ To read and write data using Hdlcpp the read and write functions are used. These
 
 ```cpp
 protocol = std::make_shared<Protocol>(
-    [this](uint8_t *data, uint16_t length) { return hdlcpp->read(data, length); },
-    [this](const uint8_t *data, uint16_t length) { return hdlcpp->write(data, length); });
+    [this](std::span<uint8_t> buffer) { return hdlcpp->read(buffer); },
+    [this](const std::span<const uint8_t> buffer) { return hdlcpp->write(buffer); });
 ```
 
 ## Python binding
