@@ -45,8 +45,8 @@ public:
     //! @param writeRetries The number of write retries in case of timeout
     Hdlcpp(TransportRead read, TransportWrite write, uint16_t bufferSize = 256,
         uint16_t writeTimeout = 100, uint8_t writeRetries = 1)
-        : transportRead(read)
-        , transportWrite(write)
+        : transportRead(std::move(read))
+        , transportWrite(std::move(write))
         , transportReadBuffer(bufferSize)
         , readFrame(FrameNack)
         , writeTimeout(writeTimeout)
@@ -186,7 +186,7 @@ protected:
         ControlTypeSelectiveReject,
     };
 
-    size_t encode(Frame &frame, uint8_t &sequenceNumber, const std::span<const uint8_t> source, std::vector<uint8_t> &destination)
+    int encode(Frame &frame, uint8_t &sequenceNumber, const std::span<const uint8_t> source, std::vector<uint8_t> &destination)
     {
         uint8_t value = 0;
         uint16_t i, fcs16Value = Fcs16InitValue;
@@ -316,7 +316,7 @@ protected:
         destination.push_back(value);
     }
 
-    uint8_t encodeControlByte(Frame frame, uint8_t sequenceNumber)
+    static uint8_t encodeControlByte(Frame frame, uint8_t sequenceNumber)
     {
         uint8_t value = 0;
 
@@ -343,7 +343,7 @@ protected:
         return value;
     }
 
-    void decodeControlByte(uint8_t value, Frame &frame, uint8_t &sequenceNumber)
+    static void decodeControlByte(uint8_t value, Frame &frame, uint8_t &sequenceNumber)
     {
         // Check if the frame is a S-frame
         if ((value >> ControlSFrameBit) & 0x1) {
@@ -364,7 +364,7 @@ protected:
         }
     }
 
-    uint16_t fcs16(uint16_t fcs16Value, uint8_t value)
+    static uint16_t fcs16(uint16_t fcs16Value, uint8_t value)
     {
         static const uint16_t fcs16ValueTable[256] = { 0x0000, 0x1189, 0x2312, 0x329b,
             0x4624, 0x57ad, 0x6536, 0x74bf, 0x8c48, 0x9dc1, 0xaf5a, 0xbed3, 0xca6c,
