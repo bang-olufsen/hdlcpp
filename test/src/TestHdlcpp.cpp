@@ -9,8 +9,8 @@ public:
     HdlcppFixture()
     {
         hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
-            [this](uint8_t *data, uint16_t length) { return transportRead(data, length); },
-            [this](const uint8_t *data, uint16_t length) { return transportWrite(data, length); },
+            [this](std::span<uint8_t> buffer) { return transportRead(buffer); },
+            [this](const std::span<const uint8_t> buffer) { return transportWrite(buffer); },
             bufferSize,
             1 // Use a 1 ms timeout to speed up tests
             );
@@ -19,17 +19,16 @@ public:
         hdlcpp->stopped = true;
     }
 
-    int transportRead(uint8_t *data, uint16_t length)
+    size_t transportRead(std::span<uint8_t> buffer)
     {
-        (void)length;
-        std::memcpy(data, readBuffer.data(), readBuffer.size());
+        std::memcpy(buffer.data(), readBuffer.data(), readBuffer.size());
         return readBuffer.size();
     }
 
-    int transportWrite(const uint8_t *data, uint16_t length)
+    size_t transportWrite(const std::span<const uint8_t> buffer)
     {
-        writeBuffer.assign((char *)data, (char *)data + length);
-        return length;
+        writeBuffer.assign(buffer.begin(), buffer.end());
+        return writeBuffer.size();
     }
 
     const uint16_t bufferSize = 64;
@@ -42,68 +41,68 @@ public:
     std::shared_ptr<Hdlcpp::Hdlcpp> hdlcpp;
     std::vector<uint8_t> readBuffer;
     std::vector<uint8_t> writeBuffer;
-    uint8_t buffer[10];
+    uint8_t dataBuffer[10];
 };
 
 TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
 {
     SECTION("Test write with invalid input")
     {
-        CHECK(hdlcpp->write(buffer, 0) == -EINVAL);
-        CHECK(hdlcpp->write(nullptr, sizeof(buffer)) == -EINVAL);
+        CHECK(hdlcpp->write({dataBuffer, 0}) == -EINVAL);
+        CHECK(hdlcpp->write({}) == -EINVAL);
     }
 
     SECTION("Test write with valid 1 byte data input")
     {
-        hdlcpp->write(&frameData[3], 1);
+        hdlcpp->write({&frameData[3], 1});
         CHECK(std::memcmp(frameData, writeBuffer.data(), sizeof(frameData)) == 0);
     }
 
     SECTION("Test write/read with FlagSequence as data input")
     {
-        hdlcpp->write(&hdlcpp->FlagSequence, 1);
+        hdlcpp->write({&hdlcpp->FlagSequence, 1});
         // Size should be 1 byte more compared to a 1 byte data frame due to escape of the value
         CHECK(writeBuffer.size() == (sizeof(frameData) + 1));
 
         readBuffer = writeBuffer;
 
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
-        CHECK(buffer[0] == hdlcpp->FlagSequence);
+        CHECK(hdlcpp->read(dataBuffer) == 1);
+        CHECK(dataBuffer[0] == hdlcpp->FlagSequence);
     }
 
     SECTION("Test write/read with ControlEscape as data input")
     {
-        hdlcpp->write(&hdlcpp->ControlEscape, 1);
+        hdlcpp->write({&hdlcpp->ControlEscape, 1});
         // Size should be 1 byte more compared to a 1 byte data frame due to escape of the value
         CHECK(writeBuffer.size() == (sizeof(frameData) + 1));
 
         readBuffer = writeBuffer;
 
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
-        CHECK(buffer[0] == hdlcpp->ControlEscape);
+        CHECK(hdlcpp->read(dataBuffer) == 1);
+        CHECK(dataBuffer[0] == hdlcpp->ControlEscape);
     }
 
     SECTION("Test read with invalid input")
     {
-        CHECK(hdlcpp->read(buffer, 0) == -EINVAL);
-        CHECK(hdlcpp->read(nullptr, sizeof(buffer)) == -EINVAL);
+        CHECK(hdlcpp->read({dataBuffer, 0}) == -EINVAL);
+        CHECK(hdlcpp->read({}) == -EINVAL);
         // This should fail as the buffer size is configured to less
-        CHECK(hdlcpp->read(buffer, 256) == -EINVAL);
+        CHECK(hdlcpp->read({dataBuffer, 256}) == -EINVAL);
 
         readBuffer.assign(frameDataInvalid, frameDataInvalid + sizeof(frameDataInvalid));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
+        CHECK(hdlcpp->read(dataBuffer) == -EIO);
         CHECK(std::memcmp(frameNack, writeBuffer.data(), sizeof(frameNack)) == 0);
     }
 
     SECTION("Test read of two valid 1 byte data frames")
     {
         readBuffer.assign(frameData, frameData + sizeof(frameData));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
-        CHECK(buffer[0] == frameData[3]);
+        CHECK(hdlcpp->read(dataBuffer) == 1);
+        CHECK(dataBuffer[0] == frameData[3]);
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
 
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
-        CHECK(buffer[0] == frameData[3]);
+        CHECK(hdlcpp->read(dataBuffer) == 1);
+        CHECK(dataBuffer[0] == frameData[3]);
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
     }
 
@@ -111,21 +110,21 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
     {
         // Add the first 3 bytes to be read
         readBuffer.assign(frameData, frameData + 3);
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -ENOMSG);
+        CHECK(hdlcpp->read(dataBuffer) == -ENOMSG);
         CHECK(writeBuffer.empty());
 
         // Now add the remaining bytes to complete the data frame
         readBuffer.assign(frameData + 3, frameData + sizeof(frameData));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
-        CHECK(buffer[0] == frameData[3]);
+        CHECK(hdlcpp->read(dataBuffer) == 1);
+        CHECK(dataBuffer[0] == frameData[3]);
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
     }
 
     SECTION("Test read of valid 1 byte data frame with double flag sequence")
     {
         readBuffer.assign(frameDataDoubleFlagSequence, frameDataDoubleFlagSequence + sizeof(frameDataDoubleFlagSequence));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
-        CHECK(buffer[0] == frameData[3]);
+        CHECK(hdlcpp->read(dataBuffer) == 1);
+        CHECK(dataBuffer[0] == frameData[3]);
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
     }
 
@@ -133,13 +132,13 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
     {
         readBuffer.assign(frameData, frameData + sizeof(frameData)); // One complete frame
         readBuffer.insert(readBuffer.end(), frameData, frameData + 3); // A partial frame
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
-        CHECK(buffer[0] == frameData[3]);
+        CHECK(hdlcpp->read(dataBuffer) == 1);
+        CHECK(dataBuffer[0] == frameData[3]);
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
 
         readBuffer.assign(frameData + 3, frameData + sizeof(frameData));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
-        CHECK(buffer[0] == frameData[3]);
+        CHECK(hdlcpp->read(dataBuffer) == 1);
+        CHECK(dataBuffer[0] == frameData[3]);
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
     }
 
@@ -149,15 +148,15 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         readBuffer.insert(readBuffer.end(), frameData, frameData + sizeof(frameData));
 
         // Read first frame
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
-        CHECK(buffer[0] == frameData[3]);
+        CHECK(hdlcpp->read(dataBuffer) == 1);
+        CHECK(dataBuffer[0] == frameData[3]);
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
 
         readBuffer.clear();
-        
+
         // This must read the second frame without reading from transport layer
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 1);
-        CHECK(buffer[0] == frameData[3]);
+        CHECK(hdlcpp->read(dataBuffer) == 1);
+        CHECK(dataBuffer[0] == frameData[3]);
         CHECK(std::memcmp(frameAck, writeBuffer.data(), sizeof(frameAck)) == 0);
     }
 
@@ -165,7 +164,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
     {
         hdlcpp->writeSequenceNumber = 1;
         readBuffer.assign(frameAck, frameAck + sizeof(frameAck));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 0);
+        CHECK(hdlcpp->read(dataBuffer) == 0);
         CHECK(hdlcpp->writeResult == Hdlcpp::Hdlcpp::FrameAck);
     }
 
@@ -173,7 +172,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
     {
         hdlcpp->writeSequenceNumber = 1;
         readBuffer.assign(frameNack, frameNack + sizeof(frameNack));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 0);
+        CHECK(hdlcpp->read(dataBuffer) == 0);
         CHECK(hdlcpp->writeResult == Hdlcpp::Hdlcpp::FrameNack);
     }
 
@@ -184,11 +183,11 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         uint8_t dataValue = 0x55, encodeSequenceNumber = 3, decodeSequenceNumber = 0;
         Hdlcpp::Hdlcpp::Frame encodeFrame = Hdlcpp::Hdlcpp::FrameData, decodeFrame = Hdlcpp::Hdlcpp::FrameNack;
 
-        CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, &dataValue, sizeof(dataValue), data) > 0);
-        CHECK(hdlcpp->decode(decodeFrame, decodeSequenceNumber, data, buffer, sizeof(buffer), discardBytes) > 0);
+        CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {&dataValue, sizeof(dataValue)}, data) > 0);
+        CHECK(hdlcpp->decode(decodeFrame, decodeSequenceNumber, data, dataBuffer, discardBytes) > 0);
         CHECK(encodeFrame == decodeFrame);
         CHECK(encodeSequenceNumber == decodeSequenceNumber);
-        CHECK(buffer[0] == dataValue);
+        CHECK(dataBuffer[0] == dataValue);
     }
 
     SECTION("Test close function")
@@ -209,21 +208,21 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         const uint8_t frame7[] = { 0x7e, 0xff, 0x21, 0x0c, 0xc0, 0x7e };
 
         readBuffer.assign(frame1, frame1 + sizeof(frame1));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 2);
+        CHECK(hdlcpp->read(dataBuffer) == 2);
         readBuffer.assign(frame2, frame2 + sizeof(frame2));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -EIO);
+        CHECK(hdlcpp->read(dataBuffer) == -EIO);
         readBuffer.assign(frame3, frame3 + sizeof(frame3));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 9);
+        CHECK(hdlcpp->read(dataBuffer) == 9);
         readBuffer.assign(frame4, frame4 + sizeof(frame4));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -ENOMSG);
+        CHECK(hdlcpp->read(dataBuffer) == -ENOMSG);
         readBuffer.assign(frame5, frame5 + sizeof(frame5));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == -ENOMSG);
+        CHECK(hdlcpp->read(dataBuffer) == -ENOMSG);
         readBuffer.assign(frame6, frame6 + sizeof(frame6));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 9);
+        CHECK(hdlcpp->read(dataBuffer) == 9);
         readBuffer.assign(frame7, frame7 + sizeof(frame7));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 0);
+        CHECK(hdlcpp->read(dataBuffer) == 0);
         // Check that the initial frame can still be decoded successfully
         readBuffer.assign(frame1, frame1 + sizeof(frame1));
-        CHECK(hdlcpp->read(buffer, sizeof(buffer)) == 2);
+        CHECK(hdlcpp->read(dataBuffer) == 2);
     }
 }
