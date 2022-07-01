@@ -35,27 +35,40 @@ namespace Hdlcpp {
 using TransportRead = std::function<int(std::span<uint8_t> buffer)>;
 using TransportWrite = std::function<int(const std::span<const uint8_t> buffer)>;
 
+//! @param Capacity The buffer size to be allocated for encoding/decoding frames
+template<size_t Capacity>
 class Hdlcpp {
+    using container = std::array<uint8_t, Capacity>;
+
+    template<typename T>
+    struct span {
+        constexpr span(std::span<T> span) : m_span(span), itr(span.begin()) {}
+
+        constexpr void push_back(const T &value) {
+            if (itr != m_span.end())
+                *itr++ = value;
+        }
+
+        constexpr size_t size() {
+            return std::distance(m_span.begin(), itr);
+        }
+
+        std::span<T> m_span;
+        typename std::span<T>::iterator itr;
+    };
+
 public:
     //! @brief Constructs the Hdlcpp instance
     //! @param read A std::function for reading from the transport layer (e.g. UART)
     //! @param write A std::function for writing to the transport layer (e.g. UART)
-    //! @param bufferSize The buffer size to be allocated for encoding/decoding frames
     //! @param writeTimeout The write timeout in milliseconds to wait for an ack/nack
     //! @param writeRetries The number of write retries in case of timeout
-    Hdlcpp(TransportRead read, TransportWrite write, uint16_t bufferSize = 256,
-        uint16_t writeTimeout = 100, uint8_t writeRetries = 1)
+    Hdlcpp(TransportRead read, TransportWrite write, uint16_t writeTimeout = 100, uint8_t writeRetries = 1)
         : transportRead(std::move(read))
         , transportWrite(std::move(write))
-        , transportReadBuffer(bufferSize)
         , readFrame(FrameNack)
         , writeTimeout(writeTimeout)
-        , writeRetries(writeRetries)
-    {
-        // Reserve the specified buffer size to avoid increasing the vector in small chunks (performance)
-        readBuffer.reserve(bufferSize);
-        writeBuffer.reserve(bufferSize);
-    }
+        , writeRetries(writeRetries) { }
 
     //! @brief Destructs the Hdlcpp instance
     virtual ~Hdlcpp() = default;
@@ -69,26 +82,25 @@ public:
         int result;
         uint16_t discardBytes;
 
-        if (!buffer.data() || buffer.empty() || (buffer.size() > transportReadBuffer.size()))
+        if (!buffer.data() || buffer.empty() || (buffer.size() > readBuffer.capacity()))
             return -EINVAL;
 
         do {
             bool doTransportRead{true};
             if (!readBuffer.empty()) {
                 // Try to decode the readBuffer before potentially blocking in the transportRead
-                result = decode(readFrame, readSequenceNumber, readBuffer, buffer, discardBytes);
+                result = decode(readFrame, readSequenceNumber, readBuffer.data_span(), buffer, discardBytes);
                 if (result >= 0) {
                     doTransportRead = false;
                 }
             }
 
             if (doTransportRead) {
-                if ((result = transportRead(transportReadBuffer)) <= 0)
+                if ((result = transportRead(readBuffer.empty_span())) <= 0)
                     return result;
 
-                // Insert the read data into the readBuffer for easier manipulation (e.g. erase)
-                readBuffer.insert(readBuffer.end(), transportReadBuffer.begin(), transportReadBuffer.begin() + result);
-                result = decode(readFrame, readSequenceNumber, readBuffer, buffer, discardBytes);
+                readBuffer.set_tail(result);
+                result = decode(readFrame, readSequenceNumber, readBuffer.data_span(), buffer, discardBytes);
             }
 
             if (discardBytes > 0) {
@@ -186,7 +198,7 @@ protected:
         ControlTypeSelectiveReject,
     };
 
-    int encode(Frame &frame, uint8_t &sequenceNumber, const std::span<const uint8_t> source, std::vector<uint8_t> &destination)
+    int encode(Frame &frame, uint8_t &sequenceNumber, const std::span<const uint8_t> source, Hdlcpp::span<uint8_t> destination)
     {
         uint8_t value = 0;
         uint16_t i, fcs16Value = Fcs16InitValue;
@@ -222,7 +234,7 @@ protected:
         return destination.size();
     }
 
-    int decode(Frame &frame, uint8_t &sequenceNumber, const std::span<uint8_t> source, std::span<uint8_t> destination, uint16_t &discardBytes)
+    int decode(Frame &frame, uint8_t &sequenceNumber, const std::span<uint8_t> source, std::span<uint8_t> destination, uint16_t &discardBytes) const
     {
         uint8_t value = 0;
         bool controlEscape = false;
@@ -298,15 +310,13 @@ protected:
     {
         int result;
 
-        writeBuffer.clear();
-
-        if ((result = encode(frame, sequenceNumber, data, writeBuffer)) < 0)
+        if ((result = encode(frame, sequenceNumber, data, {writeBuffer})) < 0)
             return result;
 
-        return transportWrite(writeBuffer);
+        return transportWrite(std::span(writeBuffer).first(result));
     }
 
-    void escape(uint8_t value, std::vector<uint8_t> &destination)
+    void escape(uint8_t value, Hdlcpp::span<uint8_t> &destination) const
     {
         if ((value == FlagSequence) || (value == ControlEscape)) {
             destination.push_back(ControlEscape);
@@ -399,6 +409,58 @@ protected:
         return (fcs16Value >> 8) ^ fcs16ValueTable[(fcs16Value ^ value) & 0xff];
     }
 
+    template<typename T, std::size_t CAPACITY>
+    class Buffer {
+        using container = std::array<T, CAPACITY>;
+
+    public:
+        bool empty() {
+            return std::span<typename container::value_type>(m_head, m_tail).empty();
+        }
+
+        size_t capacity() {
+            return CAPACITY;
+        }
+
+        typename container::iterator begin() {
+            return m_head;
+        }
+
+        typename container::iterator end() {
+            return m_tail;
+        }
+
+        std::span<uint8_t> data_span() {
+            return {m_head, m_tail};
+        }
+
+        std::span<uint8_t> empty_span() {
+            return {m_tail, buffer.end()};
+        }
+
+        void set_tail(size_t tail) {
+            m_tail += tail;
+        }
+
+        constexpr typename container::iterator
+        erase(typename container::iterator first, typename container::iterator last) {
+            if (last < m_tail) {
+                std::span<uint8_t> toBeMoved(last, m_tail);
+                for (const auto &byte: toBeMoved) {
+                    *first++ = byte;
+                }
+                m_tail = first;
+            }
+            return {};
+        }
+
+
+    private:
+        container buffer{};
+        typename container::iterator m_head{buffer.begin()};
+        typename container::iterator m_tail{buffer.begin()};
+    };
+
     const uint16_t Fcs16InitValue = 0xffff;
     const uint16_t Fcs16GoodValue = 0xf0b8;
     const uint8_t FlagSequence = 0x7e;
@@ -408,9 +470,8 @@ protected:
     std::mutex writeMutex;
     TransportRead transportRead;
     TransportWrite transportWrite;
-    std::vector<uint8_t> transportReadBuffer;
-    std::vector<uint8_t> readBuffer;
-    std::vector<uint8_t> writeBuffer;
+    Hdlcpp::Buffer<uint8_t, Capacity> readBuffer;
+    container writeBuffer;
     Frame readFrame;
     uint16_t writeTimeout;
     uint8_t writeRetries;
