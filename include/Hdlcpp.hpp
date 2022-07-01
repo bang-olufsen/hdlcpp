@@ -35,18 +35,71 @@ namespace Hdlcpp {
 using TransportRead = std::function<int(std::span<uint8_t> buffer)>;
 using TransportWrite = std::function<int(const std::span<const uint8_t> buffer)>;
 
+template<typename T, std::size_t Capacity>
+class Buffer {
+    using Container = std::array<T, Capacity>;
+
+public:
+    bool empty() {
+        return std::span<typename Container::value_type>(m_head, m_tail).empty();
+    }
+
+    size_t capacity() {
+        return buffer.size();
+    }
+
+    typename Container::iterator begin() {
+        return m_head;
+    }
+
+    typename Container::iterator end() {
+        return m_tail;
+    }
+
+    std::span<uint8_t> data_span() {
+        return {m_head, m_tail};
+    }
+
+    std::span<uint8_t> unused_span() {
+        return {m_tail, buffer.end()};
+    }
+
+    void set_tail(size_t tail) {
+        m_tail += tail;
+    }
+
+    constexpr typename Container::iterator erase(typename Container::iterator first, typename Container::iterator last) {
+        if (last < m_tail) {
+            std::span<uint8_t> toBeMoved(last, m_tail);
+            for (const auto &byte: toBeMoved) {
+                *first++ = byte;
+            }
+            m_tail = first;
+        }
+        return {};
+    }
+
+private:
+    Container buffer{};
+    typename Container::iterator m_head{ buffer.begin() };
+    typename Container::iterator m_tail{ buffer.begin() };
+};
+
 //! @param Capacity The buffer size to be allocated for encoding/decoding frames
 template<size_t Capacity>
 class Hdlcpp {
-    using container = std::array<uint8_t, Capacity>;
+    using Container = std::array<uint8_t, Capacity>;
 
     template<typename T>
     struct span {
         constexpr span(std::span<T> span) : m_span(span), itr(span.begin()) {}
 
-        constexpr void push_back(const T &value) {
-            if (itr != m_span.end())
+        constexpr bool push_back(const T &value) {
+            if (itr != m_span.end()) {
                 *itr++ = value;
+                return true;
+            }
+            return false;
         }
 
         constexpr size_t size() {
@@ -96,7 +149,7 @@ public:
             }
 
             if (doTransportRead) {
-                if ((result = transportRead(readBuffer.empty_span())) <= 0)
+                if ((result = transportRead(readBuffer.unused_span())) <= 0)
                     return result;
 
                 readBuffer.set_tail(result);
@@ -409,58 +462,6 @@ protected:
         return (fcs16Value >> 8) ^ fcs16ValueTable[(fcs16Value ^ value) & 0xff];
     }
 
-    template<typename T, std::size_t CAPACITY>
-    class Buffer {
-        using container = std::array<T, CAPACITY>;
-
-    public:
-        bool empty() {
-            return std::span<typename container::value_type>(m_head, m_tail).empty();
-        }
-
-        size_t capacity() {
-            return CAPACITY;
-        }
-
-        typename container::iterator begin() {
-            return m_head;
-        }
-
-        typename container::iterator end() {
-            return m_tail;
-        }
-
-        std::span<uint8_t> data_span() {
-            return {m_head, m_tail};
-        }
-
-        std::span<uint8_t> empty_span() {
-            return {m_tail, buffer.end()};
-        }
-
-        void set_tail(size_t tail) {
-            m_tail += tail;
-        }
-
-        constexpr typename container::iterator
-        erase(typename container::iterator first, typename container::iterator last) {
-            if (last < m_tail) {
-                std::span<uint8_t> toBeMoved(last, m_tail);
-                for (const auto &byte: toBeMoved) {
-                    *first++ = byte;
-                }
-                m_tail = first;
-            }
-            return {};
-        }
-
-
-    private:
-        container buffer{};
-        typename container::iterator m_head{buffer.begin()};
-        typename container::iterator m_tail{buffer.begin()};
-    };
-
     const uint16_t Fcs16InitValue = 0xffff;
     const uint16_t Fcs16GoodValue = 0xf0b8;
     const uint8_t FlagSequence = 0x7e;
@@ -470,8 +471,8 @@ protected:
     std::mutex writeMutex;
     TransportRead transportRead;
     TransportWrite transportWrite;
-    Hdlcpp::Buffer<uint8_t, Capacity> readBuffer;
-    container writeBuffer;
+    Buffer<uint8_t, Capacity> readBuffer;
+    Container writeBuffer;
     Frame readFrame;
     uint16_t writeTimeout;
     uint8_t writeRetries;
