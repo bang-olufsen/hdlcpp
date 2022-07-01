@@ -40,12 +40,12 @@ class Buffer {
     using Container = std::array<T, Capacity>;
 
 public:
-    bool empty() {
+    [[nodiscard]] bool empty() const {
         return std::span<typename Container::value_type>(m_head, m_tail).empty();
     }
 
-    size_t capacity() {
-        return buffer.size();
+    constexpr size_t capacity() {
+        return Capacity;
     }
 
     typename Container::iterator begin() {
@@ -61,7 +61,7 @@ public:
     }
 
     std::span<uint8_t> unused_span() {
-        return {m_tail, buffer.end()};
+        return {m_tail, m_buffer.end()};
     }
 
     void set_tail(size_t tail) {
@@ -76,13 +76,13 @@ public:
             }
             m_tail = first;
         }
-        return {};
+        return m_tail;
     }
 
 private:
-    Container buffer{};
-    typename Container::iterator m_head{ buffer.begin() };
-    typename Container::iterator m_tail{ buffer.begin() };
+    Container m_buffer{};
+    typename Container::iterator m_head{ m_buffer.begin() };
+    typename Container::iterator m_tail{ m_buffer.begin() };
 };
 
 //! @param Capacity The buffer size to be allocated for encoding/decoding frames
