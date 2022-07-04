@@ -7,10 +7,10 @@
 class HdlcppFixture {
     static constexpr uint16_t bufferSize = 64;
 public:
-    using hdlcpp_t = Hdlcpp::Hdlcpp<bufferSize>;
+    using Hdlcpp_t = Hdlcpp::Hdlcpp<bufferSize>;
     HdlcppFixture()
     {
-        hdlcpp = std::make_shared<hdlcpp_t>(
+        hdlcpp = std::make_shared<Hdlcpp_t>(
             [this](std::span<uint8_t> buffer) { return transportRead(buffer); },
             [this](const std::span<const uint8_t> buffer) { return transportWrite(buffer); },
             1 // Use a 1 ms timeout to speed up tests
@@ -38,7 +38,7 @@ public:
     const uint8_t frameDataInvalid[7] = { 0x7e, 0xff, 0x12, 0x33, 0x67, 0xf8, 0x7e };
     const uint8_t frameDataDoubleFlagSequence[9] = { 0x7e, 0x7e, 0xff, 0x12, 0x55, 0x36, 0xa3, 0x7e, 0x7e };
 
-    std::shared_ptr<hdlcpp_t> hdlcpp;
+    std::shared_ptr<Hdlcpp_t> hdlcpp;
     std::vector<uint8_t> readBuffer;
     std::vector<uint8_t> writeBuffer;
     uint8_t dataBuffer[10];
@@ -165,7 +165,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         hdlcpp->writeSequenceNumber = 1;
         readBuffer.assign(frameAck, frameAck + sizeof(frameAck));
         CHECK(hdlcpp->read(dataBuffer) == 0);
-        CHECK(hdlcpp->writeResult == hdlcpp_t::FrameAck);
+        CHECK(hdlcpp->writeResult == Hdlcpp_t::FrameAck);
     }
 
     SECTION("Test read of nack frame")
@@ -173,7 +173,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         hdlcpp->writeSequenceNumber = 1;
         readBuffer.assign(frameNack, frameNack + sizeof(frameNack));
         CHECK(hdlcpp->read(dataBuffer) == 0);
-        CHECK(hdlcpp->writeResult == hdlcpp_t::FrameNack);
+        CHECK(hdlcpp->writeResult == Hdlcpp_t::FrameNack);
     }
 
     SECTION("Test encode/decode functions with 1 byte data")
@@ -181,7 +181,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         std::array<uint8_t, 256> data{};
         uint16_t discardBytes = 0;
         uint8_t dataValue = 0x55, encodeSequenceNumber = 3, decodeSequenceNumber = 0;
-        hdlcpp_t::Frame encodeFrame = hdlcpp_t::FrameData, decodeFrame = hdlcpp_t::FrameNack;
+        Hdlcpp_t::Frame encodeFrame = Hdlcpp_t::FrameData, decodeFrame = Hdlcpp_t::FrameNack;
 
         CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {&dataValue, sizeof(dataValue)}, {data}) > 0);
         CHECK(hdlcpp->decode(decodeFrame, decodeSequenceNumber, data, dataBuffer, discardBytes) > 0);
@@ -193,7 +193,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
     SECTION("Test encode buffer too small")
     {
         // Slowly increasing buffer size to traverse down Hdlcpp::encode function.
-        hdlcpp_t::Frame encodeFrame = hdlcpp_t::FrameData;
+        Hdlcpp_t::Frame encodeFrame = Hdlcpp_t::FrameData;
         uint8_t dataValue = 0x55, encodeSequenceNumber = 3;
 
         {
@@ -235,7 +235,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
     SECTION("Test escape in a too small buffer")
     {
         std::array<uint8_t, 0> buffer{};
-        hdlcpp_t::span<uint8_t> span(buffer);
+        Hdlcpp_t::span<uint8_t> span(buffer);
         const auto value {GENERATE(0x7e, 0x7d)};
         CHECK(hdlcpp->escape(value, span) == -EINVAL);
     }
