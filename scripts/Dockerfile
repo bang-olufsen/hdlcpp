@@ -23,6 +23,7 @@ RUN apt-get update \
     g++-10 \
     gcc-multilib \
     g++-multilib \
+    gdb \
     lcov \
     python3.8 \
     python3.8-dev \

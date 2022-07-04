@@ -1,6 +1,6 @@
 {
     "name": "hdlcpp",
-    "image": "audiostreamingplatform/hdlcpp:1.0",
+    "image": "audiostreamingplatform/hdlcpp:1.1",
     "remoteUser": "user",
     "runArgs": [
         "--privileged",
