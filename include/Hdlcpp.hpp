@@ -88,6 +88,7 @@ private:
 //! @param Capacity The buffer size to be allocated for encoding/decoding frames
 template<size_t Capacity>
 class Hdlcpp {
+    static_assert(Capacity > 0, "HDLCPP requires a buffer size larger than 0");
     using Container = std::array<uint8_t, Capacity>;
 
     template<typename T>
@@ -95,7 +96,7 @@ class Hdlcpp {
         constexpr span(std::span<T> span) : m_span(span), itr(span.begin()) {}
 
         constexpr bool push_back(const T &value) {
-            if (itr != m_span.end()) {
+            if (itr < m_span.end()) {
                 *itr++ = value;
                 return true;
             }
@@ -256,13 +257,16 @@ protected:
         uint8_t value = 0;
         uint16_t i, fcs16Value = Fcs16InitValue;
 
-        destination.push_back(FlagSequence);
+        if(!destination.push_back(FlagSequence))
+            return -EINVAL;
         fcs16Value = fcs16(fcs16Value, AllStationAddress);
-        escape(AllStationAddress, destination);
+        if(escape(AllStationAddress, destination) < 0)
+            return -EINVAL;
 
         value = encodeControlByte(frame, sequenceNumber);
         fcs16Value = fcs16(fcs16Value, value);
-        escape(value, destination);
+        if(escape(value, destination) < 0)
+            return -EINVAL;
 
         if (frame == FrameData) {
             if (!source.data() || source.empty())
@@ -270,7 +274,8 @@ protected:
 
             for (const auto &byte : source) {
                 fcs16Value = fcs16(fcs16Value, byte);
-                escape(byte, destination);
+                if(escape(byte, destination) < 0)
+                    return -EINVAL;
             }
         }
 
@@ -279,10 +284,12 @@ protected:
 
         for (i = 0; i < sizeof(fcs16Value); i++) {
             value = ((fcs16Value >> (8 * i)) & 0xFF);
-            escape(value, destination);
+            if(escape(value, destination) < 0)
+                return -EINVAL;
         }
 
-        destination.push_back(FlagSequence);
+        if(!destination.push_back(FlagSequence))
+            return -EINVAL;
 
         return destination.size();
     }
@@ -369,14 +376,18 @@ protected:
         return transportWrite(std::span(writeBuffer).first(result));
     }
 
-    void escape(uint8_t value, Hdlcpp::span<uint8_t> &destination) const
+    int escape(uint8_t value, Hdlcpp::span<uint8_t> &destination) const
     {
         if ((value == FlagSequence) || (value == ControlEscape)) {
-            destination.push_back(ControlEscape);
+            if(!destination.push_back(ControlEscape))
+                return -EINVAL;
             value ^= 0x20;
         }
 
-        destination.push_back(value);
+        if(!destination.push_back(value))
+            return -EINVAL;
+
+        return 0;
     }
 
     static uint8_t encodeControlByte(Frame frame, uint8_t sequenceNumber)

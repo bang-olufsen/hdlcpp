@@ -5,8 +5,7 @@
 
 using Pybind11Read = std::function<char(int)>;
 using Pybind11Write = std::function<int(pybind11::bytes)>;
-
-using Hdlcpp_t = Hdlcpp::Hdlcpp<256>;
+using Hdlcpp_t = Hdlcpp::Hdlcpp<PYTHON_HDLCPP_BUFFER_SIZE>;
 
 PYBIND11_MODULE(phdlcpp, m)
 {
