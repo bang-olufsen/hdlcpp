@@ -190,6 +190,56 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         CHECK(dataBuffer[0] == dataValue);
     }
 
+    SECTION("Test encode buffer too small")
+    {
+        // Slowly increasing buffer size to traverse down Hdlcpp::encode function.
+        hdlcpp_t::Frame encodeFrame = hdlcpp_t::FrameData;
+        uint8_t dataValue = 0x55, encodeSequenceNumber = 3;
+
+        {
+            std::array<uint8_t, 0> buffer{};
+            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {}, {buffer}) == -EINVAL);
+        }
+
+        {
+            std::array<uint8_t, 1> buffer{};
+            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {}, {buffer}) == -EINVAL);
+        }
+
+        {
+            std::array<uint8_t, 2> buffer{};
+            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {}, {buffer}) == -EINVAL);
+        }
+
+        {
+            std::array<uint8_t, 3> buffer{};
+            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {}, {buffer}) == -EINVAL);
+        }
+
+        {
+            std::array<uint8_t, 3> buffer{};
+            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {&dataValue, sizeof(dataValue)}, {buffer}) == -EINVAL);
+        }
+
+        {
+            std::array<uint8_t, 4> buffer{};
+            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {&dataValue, sizeof(dataValue)}, {buffer}) == -EINVAL);
+        }
+
+        {
+            std::array<uint8_t, 6> buffer{};
+            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {&dataValue, sizeof(dataValue)}, {buffer}) == -EINVAL);
+        }
+    }
+
+    SECTION("Test escape in a too small buffer")
+    {
+        std::array<uint8_t, 0> buffer{};
+        hdlcpp_t::span<uint8_t> span(buffer);
+        const auto value {GENERATE(0x7e, 0x7d)};
+        CHECK(hdlcpp->escape(value, span) == -EINVAL);
+    }
+
     SECTION("Test close function")
     {
         hdlcpp->close();
@@ -225,4 +275,17 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         readBuffer.assign(frame1, frame1 + sizeof(frame1));
         CHECK(hdlcpp->read(dataBuffer) == 2);
     }
+
+    SECTION("Test push_back on full buffer")
+    {
+        std::array<uint8_t, 1> buffer{};
+
+        Hdlcpp::Hdlcpp<1>::span<uint8_t> span(buffer);
+
+        CHECK(span.push_back(1));
+        CHECK_FALSE(span.push_back(2));
+        CHECK(buffer.back() == 1);
+    }
+
+
 }

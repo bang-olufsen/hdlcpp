@@ -90,27 +90,6 @@ template<size_t Capacity>
 class Hdlcpp {
     static_assert(Capacity > 0, "HDLCPP requires a buffer size larger than 0");
     using Container = std::array<uint8_t, Capacity>;
-
-    template<typename T>
-    struct span {
-        constexpr span(std::span<T> span) : m_span(span), itr(span.begin()) {}
-
-        constexpr bool push_back(const T &value) {
-            if (itr < m_span.end()) {
-                *itr++ = value;
-                return true;
-            }
-            return false;
-        }
-
-        constexpr size_t size() {
-            return std::distance(m_span.begin(), itr);
-        }
-
-        std::span<T> m_span;
-        typename std::span<T>::iterator itr;
-    };
-
 public:
     //! @brief Constructs the Hdlcpp instance
     //! @param read A std::function for reading from the transport layer (e.g. UART)
@@ -250,6 +229,26 @@ protected:
         ControlTypeReceiveNotReady,
         ControlTypeReject,
         ControlTypeSelectiveReject,
+    };
+
+    template<typename T>
+    struct span {
+        constexpr span(std::span<T> span) : m_span(span), itr(span.begin()) {}
+
+        constexpr bool push_back(const T &value) {
+            if (itr < m_span.end()) {
+                *itr++ = value;
+                return true;
+            }
+            return false;
+        }
+
+        constexpr size_t size() {
+            return std::distance(m_span.begin(), itr);
+        }
+
+        std::span<T> m_span;
+        typename std::span<T>::iterator itr;
     };
 
     int encode(Frame &frame, uint8_t &sequenceNumber, const std::span<const uint8_t> source, Hdlcpp::span<uint8_t> destination)
