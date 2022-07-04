@@ -2,7 +2,6 @@
 set -e
 
 DOCKER_IMAGE=$(scripts/docker_image.sh 1)
-echo "docker image $DOCKER_IMAGE"
 docker build --no-cache -t "$DOCKER_IMAGE" scripts
 
 # Uncomment below to push the image
