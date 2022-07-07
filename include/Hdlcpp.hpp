@@ -56,15 +56,15 @@ public:
         return m_tail;
     }
 
-    std::span<uint8_t> data_span() {
+    std::span<uint8_t> dataSpan() {
         return {m_head, m_tail};
     }
 
-    std::span<uint8_t> unused_span() {
+    std::span<uint8_t> unusedSpan() {
         return {m_tail, m_buffer.end()};
     }
 
-    void set_tail(size_t tail) {
+    void appendToTail(size_t tail) {
         m_tail += tail;
     }
 
@@ -122,18 +122,18 @@ public:
             bool doTransportRead{true};
             if (!readBuffer.empty()) {
                 // Try to decode the readBuffer before potentially blocking in the transportRead
-                result = decode(readFrame, readSequenceNumber, readBuffer.data_span(), buffer, discardBytes);
+                result = decode(readFrame, readSequenceNumber, readBuffer.dataSpan(), buffer, discardBytes);
                 if (result >= 0) {
                     doTransportRead = false;
                 }
             }
 
             if (doTransportRead) {
-                if ((result = transportRead(readBuffer.unused_span())) <= 0)
+                if ((result = transportRead(readBuffer.unusedSpan())) <= 0)
                     return result;
 
-                readBuffer.set_tail(result);
-                result = decode(readFrame, readSequenceNumber, readBuffer.data_span(), buffer, discardBytes);
+                readBuffer.appendToTail(result);
+                result = decode(readFrame, readSequenceNumber, readBuffer.dataSpan(), buffer, discardBytes);
             }
 
             if (discardBytes > 0) {
