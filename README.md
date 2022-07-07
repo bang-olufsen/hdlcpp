@@ -33,7 +33,7 @@ protocol = std::make_shared<Protocol>(
 ## Python binding
 
 A python binding made using [pybind11](https://github.com/pybind/pybind11) can be found under the [python](https://github.com/bang-olufsen/hdlcpp/tree/master/python) folder which can be used e.g. for automated testing.
-
+Buffer size is determined on Python module build, the default buffer size is 256 bytes, to override this for the python binding add `-DPYTHON_HDLCPP_BUFFER_SIZE=<buffer size>` to the CMake build command.
 ## HDLC implementation
 
 The supported HDLC frames are limited to DATA (I-frame with Poll bit), ACK (S-frame Receive Ready with Final bit) and NACK (S-frame Reject with Final bit). All DATA frames are acknowledged or negative acknowledged. The Address and Control fields uses the 8-bit format which means that the highest sequence number is 7. The FCS field is 16-bit.
