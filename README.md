@@ -5,13 +5,13 @@ Hdlcpp is a header-only C++11 framing protocol optimized for embedded communicat
 
 ## Usage
 
-Hdlcpp requires that a transport read and write function is supplied as e.g. a [lambda expression](https://en.cppreference.com/w/cpp/language/lambda) for the actual data transport. Hereby Hdlcpp can easily be integrated e.g. with different UART implementations. It is also possible to increase the buffer size for encoding/decoding data, write timeout and number of write retries when constructing the instance.
+Hdlcpp requires that a transport read and write function is supplied as e.g. a [lambda expression](https://en.cppreference.com/w/cpp/language/lambda) for the actual data transport. Hereby Hdlcpp can easily be integrated e.g. with different UART implementations. It required a read and write buffer. The buffer type must to compatible with [std::span](https://en.cppreference.com/w/cpp/container/span), basically any contiguous sequence containers. The buffers can be size independent for encoding/decoding data, write timeout and number of write retries are also configurable when constructing the instance.
 
 ```cpp
 hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
     [this](std::span<uint8_t> buffer) { return serial->read(buffer); },
     [this](const std::span<const uint8_t> buffer) { return serial->write(buffer); },
-    bufferSize, writeTimeout, writeRetries);
+    readBuffer, writeBuffer, writeTimeout, writeRetries);
 ```
 
 In the case where the underlying transport layer does not support `std::span`, the pointer to the first element and the size can be extracted from the span like so.
@@ -19,7 +19,7 @@ In the case where the underlying transport layer does not support `std::span`, t
 hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
     [this](std::span<uint8_t> buffer) { return serial->read(buffer.data(), buffer.size()); },
     [this](const std::span<const uint8_t> buffer) { return serial->write(buffer.data(), buffer.size()); },
-    bufferSize, writeTimeout, writeRetries);
+    readBuffer, writeBuffer, writeTimeout, writeRetries);
 ```
 
 To read and write data using Hdlcpp the read and write functions are used. These could again e.g. be used as lambdas expressions to a protocol implementation (layered architecture). The protocol could e.g. be [nanopb](https://github.com/nanopb/nanopb).
@@ -33,7 +33,7 @@ protocol = std::make_shared<Protocol>(
 ## Python binding
 
 A python binding made using [pybind11](https://github.com/pybind/pybind11) can be found under the [python](https://github.com/bang-olufsen/hdlcpp/tree/master/python) folder which can be used e.g. for automated testing.
-Buffer size is determined on Python module build, the default buffer size is 256 bytes, to override this for the python binding add `-DPYTHON_HDLCPP_BUFFER_SIZE=<buffer size>` to the CMake build command.
+
 ## HDLC implementation
 
 The supported HDLC frames are limited to DATA (I-frame with Poll bit), ACK (S-frame Receive Ready with Final bit) and NACK (S-frame Reject with Final bit). All DATA frames are acknowledged or negative acknowledged. The Address and Control fields uses the 8-bit format which means that the highest sequence number is 7. The FCS field is 16-bit.
