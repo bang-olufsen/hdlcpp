@@ -35,17 +35,20 @@ namespace Hdlcpp {
 using TransportRead = std::function<int(std::span<uint8_t> buffer)>;
 using TransportWrite = std::function<int(const std::span<const uint8_t> buffer)>;
 
-template<typename T, std::size_t Capacity>
+template<typename T>
 class Buffer {
-    using Container = std::array<T, Capacity>;
+    using Container = std::span<T>;
 
 public:
+    Buffer(Container buffer)
+    : m_buffer(buffer) {}
+
     [[nodiscard]] bool empty() const {
         return std::span<typename Container::value_type>(m_head, m_tail).empty();
     }
 
     constexpr size_t capacity() {
-        return Capacity;
+        return m_buffer.size();
     }
 
     typename Container::iterator begin() {
@@ -56,11 +59,11 @@ public:
         return m_tail;
     }
 
-    std::span<uint8_t> dataSpan() {
+    Container dataSpan() {
         return {m_head, m_tail};
     }
 
-    std::span<uint8_t> unusedSpan() {
+    Container unusedSpan() {
         return {m_tail, m_buffer.end()};
     }
 
@@ -70,7 +73,7 @@ public:
 
     constexpr typename Container::iterator erase(typename Container::iterator first, typename Container::iterator last) {
         if (last < m_tail) {
-            std::span<uint8_t> toBeMoved(last, m_tail);
+            Container toBeMoved(last, m_tail);
             for (const auto &byte: toBeMoved) {
                 *first++ = byte;
             }
@@ -86,19 +89,30 @@ private:
 };
 
 //! @param Capacity The buffer size to be allocated for encoding/decoding frames
-template<size_t Capacity>
 class Hdlcpp {
-    static_assert(Capacity > 0, "HDLCPP requires a buffer size larger than 0");
-    using Container = std::array<uint8_t, Capacity>;
+    using Container = std::span<uint8_t>;
 public:
+    template<size_t Capacity>
+    using StaticBuffer = std::array<Container::value_type, Capacity>;
+
+    template<size_t Capacity>
+    struct Calculate
+    {
+        // For details see: https://en.wikipedia.org/wiki/High-Level_Data_Link_Control#Structure
+        static constexpr size_t Overhead = Capacity * 2 + 8;
+    };
+
+    using value_type = Container::value_type;
     //! @brief Constructs the Hdlcpp instance
     //! @param read A std::function for reading from the transport layer (e.g. UART)
     //! @param write A std::function for writing to the transport layer (e.g. UART)
     //! @param writeTimeout The write timeout in milliseconds to wait for an ack/nack
     //! @param writeRetries The number of write retries in case of timeout
-    Hdlcpp(TransportRead read, TransportWrite write, uint16_t writeTimeout = 100, uint8_t writeRetries = 1)
+    Hdlcpp(TransportRead read, TransportWrite write, Container readBuffer, Container writeBuffer, uint16_t writeTimeout = 100, uint8_t writeRetries = 1)
         : transportRead(std::move(read))
         , transportWrite(std::move(write))
+        , readBuffer(readBuffer)
+        , writeBuffer(writeBuffer)
         , readFrame(FrameNack)
         , writeTimeout(writeTimeout)
         , writeRetries(writeRetries) { }
@@ -110,7 +124,7 @@ public:
     //! @param data A pointer to an allocated buffer (should be bigger than max frame length)
     //! @param length The length of the allocated buffer
     //! @return The number of bytes received if positive or an error code from <cerrno>
-    virtual int read(std::span<uint8_t> buffer)
+    virtual int read(Container buffer)
     {
         int result;
         uint16_t discardBytes;
@@ -293,7 +307,7 @@ protected:
         return destination.size();
     }
 
-    int decode(Frame &frame, uint8_t &sequenceNumber, const std::span<uint8_t> source, std::span<uint8_t> destination, uint16_t &discardBytes) const
+    int decode(Frame &frame, uint8_t &sequenceNumber, const Container source, Container destination, uint16_t &discardBytes) const
     {
         uint8_t value = 0;
         bool controlEscape = false;
@@ -481,7 +495,7 @@ protected:
     std::mutex writeMutex;
     TransportRead transportRead;
     TransportWrite transportWrite;
-    Buffer<uint8_t, Capacity> readBuffer;
+    Buffer<uint8_t> readBuffer;
     Container writeBuffer;
     Frame readFrame;
     uint16_t writeTimeout;
