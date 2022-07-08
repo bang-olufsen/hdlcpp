@@ -7,11 +7,11 @@
 class HdlcppFixture {
     static constexpr uint16_t bufferSize = 64;
 public:
-    HdlcppFixture()
+    HdlcppFixture() : hdlcpp_writeBuffer(bufferSize)
     {
         hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
-            [this](std::span<uint8_t> buffer) { return transportRead(buffer); },
-            [this](const std::span<const uint8_t> buffer) { return transportWrite(buffer); },
+            [this](Hdlcpp::Container buffer) { return transportRead(buffer); },
+            [this](Hdlcpp::ConstContainer buffer) { return transportWrite(buffer); },
             hdlcpp_readBuffer,
             hdlcpp_writeBuffer,
             1 // Use a 1 ms timeout to speed up tests
@@ -21,13 +21,13 @@ public:
         hdlcpp->stopped = true;
     }
 
-    size_t transportRead(std::span<uint8_t> buffer)
+    size_t transportRead(Hdlcpp::Container buffer)
     {
         std::memcpy(buffer.data(), readBuffer.data(), readBuffer.size());
         return readBuffer.size();
     }
 
-    size_t transportWrite(const std::span<const uint8_t> buffer)
+    size_t transportWrite(Hdlcpp::ConstContainer buffer)
     {
         writeBuffer.assign(buffer.begin(), buffer.end());
         return writeBuffer.size();
@@ -40,7 +40,8 @@ public:
     const uint8_t frameDataDoubleFlagSequence[9] = { 0x7e, 0x7e, 0xff, 0x12, 0x55, 0x36, 0xa3, 0x7e, 0x7e };
 
     std::shared_ptr<Hdlcpp::Hdlcpp> hdlcpp;
-    Hdlcpp::Hdlcpp::StaticBuffer<bufferSize> hdlcpp_readBuffer{}, hdlcpp_writeBuffer{};
+    Hdlcpp::StaticBuffer<Hdlcpp::Calculate<bufferSize>::WithOverhead> hdlcpp_readBuffer{};
+    std::vector<Hdlcpp::value_type> hdlcpp_writeBuffer{};
     std::vector<uint8_t> readBuffer;
     std::vector<uint8_t> writeBuffer;
     uint8_t dataBuffer[10];

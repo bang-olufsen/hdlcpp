@@ -32,9 +32,6 @@
 
 namespace Hdlcpp {
 
-using TransportRead = std::function<int(std::span<uint8_t> buffer)>;
-using TransportWrite = std::function<int(const std::span<const uint8_t> buffer)>;
-
 template<typename T>
 class Buffer {
     using Container = std::span<T>;
@@ -88,21 +85,25 @@ private:
     typename Container::iterator m_tail{ m_buffer.begin() };
 };
 
+using Container = std::span<uint8_t>;
+using ConstContainer = const std::span<const Container::element_type>;
+using value_type = Container::value_type;
+
+template<size_t Capacity>
+using StaticBuffer = std::array<Container::value_type, Capacity>;
+
+template<size_t Capacity>
+struct Calculate {
+    // For details see: https://en.wikipedia.org/wiki/High-Level_Data_Link_Control#Structure
+    static constexpr size_t WithOverhead{ Capacity * 2 + 8 };
+};
+
+using TransportRead = std::function<int(Container buffer)>;
+using TransportWrite = std::function<int(ConstContainer buffer)>;
+
 //! @param Capacity The buffer size to be allocated for encoding/decoding frames
 class Hdlcpp {
-    using Container = std::span<uint8_t>;
 public:
-    template<size_t Capacity>
-    using StaticBuffer = std::array<Container::value_type, Capacity>;
-
-    template<size_t Capacity>
-    struct Calculate
-    {
-        // For details see: https://en.wikipedia.org/wiki/High-Level_Data_Link_Control#Structure
-        static constexpr size_t Overhead = Capacity * 2 + 8;
-    };
-
-    using value_type = Container::value_type;
     //! @brief Constructs the Hdlcpp instance
     //! @param read A std::function for reading from the transport layer (e.g. UART)
     //! @param write A std::function for writing to the transport layer (e.g. UART)
@@ -178,7 +179,7 @@ public:
     //! @param data A pointer to the data to be sent
     //! @param length The length of the data to be sent
     //! @return The number of bytes sent if positive or an error code from <cerrno>
-    virtual int write(const std::span<const uint8_t> buffer)
+    virtual int write(ConstContainer buffer)
     {
         int result;
 
@@ -265,7 +266,7 @@ protected:
         typename std::span<T>::iterator itr;
     };
 
-    int encode(Frame &frame, uint8_t &sequenceNumber, const std::span<const uint8_t> source, Hdlcpp::span<uint8_t> destination)
+    int encode(Frame &frame, uint8_t &sequenceNumber, ConstContainer source, Hdlcpp::span<uint8_t> destination)
     {
         uint8_t value = 0;
         uint16_t i, fcs16Value = Fcs16InitValue;
@@ -379,7 +380,7 @@ protected:
         return result;
     }
 
-    int writeFrame(Frame frame, uint8_t sequenceNumber, const std::span<const uint8_t> data)
+    int writeFrame(Frame frame, uint8_t sequenceNumber, ConstContainer data)
     {
         int result;
 
