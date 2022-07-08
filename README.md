@@ -5,7 +5,7 @@ Hdlcpp is a header-only C++11 framing protocol optimized for embedded communicat
 
 ## Usage
 
-Hdlcpp requires that a transport read and write function is supplied as e.g. a [lambda expression](https://en.cppreference.com/w/cpp/language/lambda) for the actual data transport. Hereby Hdlcpp can easily be integrated e.g. with different UART implementations. It required a read and write buffer. The buffer type must to compatible with [std::span](https://en.cppreference.com/w/cpp/container/span), basically any contiguous sequence containers. The buffers can be size independent for encoding/decoding data, write timeout and number of write retries are also configurable when constructing the instance.
+Hdlcpp requires that a transport read and write function is supplied as e.g. a [lambda expression](https://en.cppreference.com/w/cpp/language/lambda) for the actual data transport. Hereby Hdlcpp can easily be integrated e.g. with different UART implementations. It requires a read and write buffer. The buffer type must to compatible with [std::span](https://en.cppreference.com/w/cpp/container/span), basically any contiguous sequence containers. The buffers can be size independent for encoding/decoding data, write timeout and number of write retries are also configurable when constructing the instance.
 
 ```cpp
 hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
