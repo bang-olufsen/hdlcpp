@@ -7,12 +7,13 @@
 class HdlcppFixture {
     static constexpr uint16_t bufferSize = 64;
 public:
-    using Hdlcpp_t = Hdlcpp::Hdlcpp<bufferSize>;
-    HdlcppFixture()
+    HdlcppFixture() : hdlcpp_writeBuffer(bufferSize)
     {
-        hdlcpp = std::make_shared<Hdlcpp_t>(
-            [this](std::span<uint8_t> buffer) { return transportRead(buffer); },
-            [this](const std::span<const uint8_t> buffer) { return transportWrite(buffer); },
+        hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
+            [this](Hdlcpp::Container buffer) { return transportRead(buffer); },
+            [this](Hdlcpp::ConstContainer buffer) { return transportWrite(buffer); },
+            hdlcpp_readBuffer,
+            hdlcpp_writeBuffer,
             1 // Use a 1 ms timeout to speed up tests
             );
 
@@ -20,13 +21,13 @@ public:
         hdlcpp->stopped = true;
     }
 
-    size_t transportRead(std::span<uint8_t> buffer)
+    size_t transportRead(Hdlcpp::Container buffer)
     {
         std::memcpy(buffer.data(), readBuffer.data(), readBuffer.size());
         return readBuffer.size();
     }
 
-    size_t transportWrite(const std::span<const uint8_t> buffer)
+    size_t transportWrite(Hdlcpp::ConstContainer buffer)
     {
         writeBuffer.assign(buffer.begin(), buffer.end());
         return writeBuffer.size();
@@ -38,7 +39,9 @@ public:
     const uint8_t frameDataInvalid[7] = { 0x7e, 0xff, 0x12, 0x33, 0x67, 0xf8, 0x7e };
     const uint8_t frameDataDoubleFlagSequence[9] = { 0x7e, 0x7e, 0xff, 0x12, 0x55, 0x36, 0xa3, 0x7e, 0x7e };
 
-    std::shared_ptr<Hdlcpp_t> hdlcpp;
+    std::shared_ptr<Hdlcpp::Hdlcpp> hdlcpp;
+    Hdlcpp::StaticBuffer<Hdlcpp::Calculate<bufferSize>::WithOverhead> hdlcpp_readBuffer{};
+    std::vector<Hdlcpp::value_type> hdlcpp_writeBuffer{};
     std::vector<uint8_t> readBuffer;
     std::vector<uint8_t> writeBuffer;
     uint8_t dataBuffer[10];
@@ -165,7 +168,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         hdlcpp->writeSequenceNumber = 1;
         readBuffer.assign(frameAck, frameAck + sizeof(frameAck));
         CHECK(hdlcpp->read(dataBuffer) == 0);
-        CHECK(hdlcpp->writeResult == Hdlcpp_t::FrameAck);
+        CHECK(hdlcpp->writeResult == Hdlcpp::Hdlcpp::FrameAck);
     }
 
     SECTION("Test read of nack frame")
@@ -173,7 +176,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         hdlcpp->writeSequenceNumber = 1;
         readBuffer.assign(frameNack, frameNack + sizeof(frameNack));
         CHECK(hdlcpp->read(dataBuffer) == 0);
-        CHECK(hdlcpp->writeResult == Hdlcpp_t::FrameNack);
+        CHECK(hdlcpp->writeResult == Hdlcpp::Hdlcpp::FrameNack);
     }
 
     SECTION("Test encode/decode functions with 1 byte data")
@@ -181,7 +184,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         std::array<uint8_t, 256> data{};
         uint16_t discardBytes = 0;
         uint8_t dataValue = 0x55, encodeSequenceNumber = 3, decodeSequenceNumber = 0;
-        Hdlcpp_t::Frame encodeFrame = Hdlcpp_t::FrameData, decodeFrame = Hdlcpp_t::FrameNack;
+        Hdlcpp::Hdlcpp::Frame encodeFrame = Hdlcpp::Hdlcpp::FrameData, decodeFrame = Hdlcpp::Hdlcpp::FrameNack;
 
         CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {&dataValue, sizeof(dataValue)}, {data}) > 0);
         CHECK(hdlcpp->decode(decodeFrame, decodeSequenceNumber, data, dataBuffer, discardBytes) > 0);
@@ -193,7 +196,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
     SECTION("Test encode buffer too small")
     {
         // Slowly increasing buffer size to traverse down Hdlcpp::encode function.
-        Hdlcpp_t::Frame encodeFrame = Hdlcpp_t::FrameData;
+        Hdlcpp::Hdlcpp::Frame encodeFrame = Hdlcpp::Hdlcpp::FrameData;
         uint8_t dataValue = 0x55, encodeSequenceNumber = 3;
 
         {
@@ -235,7 +238,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
     SECTION("Test escape in a too small buffer")
     {
         std::array<uint8_t, 0> buffer{};
-        Hdlcpp_t::span<uint8_t> span(buffer);
+        Hdlcpp::Hdlcpp::span<uint8_t> span(buffer);
         const auto value {GENERATE(0x7e, 0x7d)};
         CHECK(hdlcpp->escape(value, span) == -EINVAL);
     }
@@ -280,7 +283,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
     {
         std::array<uint8_t, 1> buffer{};
 
-        Hdlcpp::Hdlcpp<1>::span<uint8_t> span(buffer);
+        Hdlcpp::Hdlcpp::span<uint8_t> span(buffer);
 
         CHECK(span.push_back(1));
         CHECK_FALSE(span.push_back(2));
