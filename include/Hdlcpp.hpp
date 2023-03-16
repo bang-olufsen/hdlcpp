@@ -22,56 +22,66 @@
 
 #pragma once
 
-#include <mutex>
-#include <thread>
+#include <array>
 #include <atomic>
 #include <cerrno>
 #include <functional>
-#include <array>
+#include <mutex>
 #include <span>
+#include <thread>
 
 namespace Hdlcpp {
 
-template<typename T>
+template <typename T>
 class Buffer {
     using Container = std::span<T>;
 
 public:
     Buffer(Container buffer)
-    : m_buffer(buffer) {}
+        : m_buffer(buffer)
+    {
+    }
 
-    [[nodiscard]] bool empty() const {
+    [[nodiscard]] bool empty() const
+    {
         return std::span<typename Container::value_type>(m_head, m_tail).empty();
     }
 
-    constexpr size_t capacity() {
+    constexpr size_t capacity()
+    {
         return m_buffer.size();
     }
 
-    typename Container::iterator begin() {
+    typename Container::iterator begin()
+    {
         return m_head;
     }
 
-    typename Container::iterator end() {
+    typename Container::iterator end()
+    {
         return m_tail;
     }
 
-    Container dataSpan() {
-        return {m_head, m_tail};
+    Container dataSpan()
+    {
+        return { m_head, m_tail };
     }
 
-    Container unusedSpan() {
-        return {m_tail, m_buffer.end()};
+    Container unusedSpan()
+    {
+        return { m_tail, m_buffer.end() };
     }
 
-    void appendToTail(size_t tail) {
+    void appendToTail(size_t tail)
+    {
         m_tail += tail;
     }
 
-    constexpr typename Container::iterator erase(typename Container::iterator first, typename Container::iterator last) {
+    constexpr typename Container::iterator erase(typename Container::iterator first, typename Container::iterator last)
+    {
         if (last < m_tail) {
             Container toBeMoved(last, m_tail);
-            for (const auto &byte: toBeMoved) {
+            for (const auto& byte : toBeMoved) {
                 *first++ = byte;
             }
             m_tail = first;
@@ -80,22 +90,22 @@ public:
     }
 
 private:
-    Container m_buffer{};
-    typename Container::iterator m_head{ m_buffer.begin() };
-    typename Container::iterator m_tail{ m_buffer.begin() };
+    Container m_buffer {};
+    typename Container::iterator m_head { m_buffer.begin() };
+    typename Container::iterator m_tail { m_buffer.begin() };
 };
 
 using Container = std::span<uint8_t>;
 using ConstContainer = const std::span<const Container::element_type>;
 using value_type = Container::value_type;
 
-template<size_t Capacity>
+template <size_t Capacity>
 using StaticBuffer = std::array<Container::value_type, Capacity>;
 
-template<size_t Capacity>
+template <size_t Capacity>
 struct Calculate {
     // For details see: https://en.wikipedia.org/wiki/High-Level_Data_Link_Control#Structure
-    static constexpr size_t WithOverhead{ Capacity * 2 + 8 };
+    static constexpr size_t WithOverhead { Capacity * 2 + 8 };
 };
 
 using TransportRead = std::function<int(Container buffer)>;
@@ -116,7 +126,9 @@ public:
         , writeBuffer(writeBuffer)
         , readFrame(FrameNack)
         , writeTimeout(writeTimeout)
-        , writeRetries(writeRetries) { }
+        , writeRetries(writeRetries)
+    {
+    }
 
     //! @brief Destructs the Hdlcpp instance
     virtual ~Hdlcpp() = default;
@@ -134,7 +146,7 @@ public:
             return -EINVAL;
 
         do {
-            bool doTransportRead{true};
+            bool doTransportRead { true };
             if (!readBuffer.empty()) {
                 // Try to decode the readBuffer before potentially blocking in the transportRead
                 result = decode(readFrame, readSequenceNumber, readBuffer.dataSpan(), buffer, discardBytes);
@@ -219,7 +231,8 @@ public:
     }
 
     //! @brief Closes the reading
-    virtual void close() {
+    virtual void close()
+    {
         stopped = true;
     }
 
@@ -246,11 +259,16 @@ protected:
         ControlTypeSelectiveReject,
     };
 
-    template<typename T>
+    template <typename T>
     struct span {
-        constexpr span(std::span<T> span) : m_span(span), itr(span.begin()) {}
+        constexpr span(std::span<T> span)
+            : m_span(span)
+            , itr(span.begin())
+        {
+        }
 
-        constexpr bool push_back(const T &value) {
+        constexpr bool push_back(const T& value)
+        {
             if (itr < m_span.end()) {
                 *itr++ = value;
                 return true;
@@ -258,7 +276,8 @@ protected:
             return false;
         }
 
-        constexpr size_t size() {
+        constexpr size_t size()
+        {
             return std::distance(m_span.begin(), itr);
         }
 
@@ -266,29 +285,29 @@ protected:
         typename std::span<T>::iterator itr;
     };
 
-    int encode(Frame &frame, uint8_t &sequenceNumber, ConstContainer source, Hdlcpp::span<uint8_t> destination)
+    int encode(Frame& frame, uint8_t& sequenceNumber, ConstContainer source, Hdlcpp::span<uint8_t> destination)
     {
         uint8_t value = 0;
         uint16_t i, fcs16Value = Fcs16InitValue;
 
-        if(!destination.push_back(FlagSequence))
+        if (!destination.push_back(FlagSequence))
             return -EINVAL;
         fcs16Value = fcs16(fcs16Value, AllStationAddress);
-        if(escape(AllStationAddress, destination) < 0)
+        if (escape(AllStationAddress, destination) < 0)
             return -EINVAL;
 
         value = encodeControlByte(frame, sequenceNumber);
         fcs16Value = fcs16(fcs16Value, value);
-        if(escape(value, destination) < 0)
+        if (escape(value, destination) < 0)
             return -EINVAL;
 
         if (frame == FrameData) {
             if (!source.data() || source.empty())
                 return -EINVAL;
 
-            for (const auto &byte : source) {
+            for (const auto& byte : source) {
                 fcs16Value = fcs16(fcs16Value, byte);
-                if(escape(byte, destination) < 0)
+                if (escape(byte, destination) < 0)
                     return -EINVAL;
             }
         }
@@ -298,17 +317,17 @@ protected:
 
         for (i = 0; i < sizeof(fcs16Value); i++) {
             value = ((fcs16Value >> (8 * i)) & 0xFF);
-            if(escape(value, destination) < 0)
+            if (escape(value, destination) < 0)
                 return -EINVAL;
         }
 
-        if(!destination.push_back(FlagSequence))
+        if (!destination.push_back(FlagSequence))
             return -EINVAL;
 
         return destination.size();
     }
 
-    int decode(Frame &frame, uint8_t &sequenceNumber, const Container source, Container destination, uint16_t &discardBytes) const
+    int decode(Frame& frame, uint8_t& sequenceNumber, const Container source, Container destination, uint16_t& discardBytes) const
     {
         uint8_t value = 0;
         bool controlEscape = false;
@@ -384,21 +403,21 @@ protected:
     {
         int result;
 
-        if ((result = encode(frame, sequenceNumber, data, {writeBuffer})) < 0)
+        if ((result = encode(frame, sequenceNumber, data, { writeBuffer })) < 0)
             return result;
 
         return transportWrite(std::span(writeBuffer).first(result));
     }
 
-    int escape(uint8_t value, Hdlcpp::span<uint8_t> &destination) const
+    int escape(uint8_t value, Hdlcpp::span<uint8_t>& destination) const
     {
         if ((value == FlagSequence) || (value == ControlEscape)) {
-            if(!destination.push_back(ControlEscape))
+            if (!destination.push_back(ControlEscape))
                 return -EINVAL;
             value ^= 0x20;
         }
 
-        if(!destination.push_back(value))
+        if (!destination.push_back(value))
             return -EINVAL;
 
         return 0;
@@ -431,7 +450,7 @@ protected:
         return value;
     }
 
-    static void decodeControlByte(uint8_t value, Frame &frame, uint8_t &sequenceNumber)
+    static void decodeControlByte(uint8_t value, Frame& frame, uint8_t& sequenceNumber)
     {
         // Check if the frame is a S-frame
         if ((value >> ControlSFrameBit) & 0x1) {
@@ -501,10 +520,10 @@ protected:
     Frame readFrame;
     uint16_t writeTimeout;
     uint8_t writeRetries;
-    uint8_t readSequenceNumber{ 0 };
-    uint8_t writeSequenceNumber{ 0 };
-    std::atomic<int> writeResult{ -1 };
-    std::atomic<bool> stopped{ false };
+    uint8_t readSequenceNumber { 0 };
+    uint8_t writeSequenceNumber { 0 };
+    std::atomic<int> writeResult { -1 };
+    std::atomic<bool> stopped { false };
 };
 
 } // namespace Hdlcpp
