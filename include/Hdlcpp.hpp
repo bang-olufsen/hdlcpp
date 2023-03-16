@@ -111,6 +111,14 @@ struct Calculate {
 using TransportRead = std::function<int(Container buffer)>;
 using TransportWrite = std::function<int(ConstContainer buffer)>;
 
+using TransportAddress = uint8_t;
+static constexpr TransportAddress AddressBroadcast { 0xff };
+
+struct ReadResponse {
+    const int size;
+    const TransportAddress address;
+};
+
 //! @param Capacity The buffer size to be allocated for encoding/decoding frames
 class Hdlcpp {
 public:
@@ -137,19 +145,20 @@ public:
     //! @param data A pointer to an allocated buffer (should be bigger than max frame length)
     //! @param length The length of the allocated buffer
     //! @return The number of bytes received if positive or an error code from <cerrno>
-    virtual int read(Container buffer)
+    virtual ReadResponse read(Container buffer)
     {
         int result;
+        TransportAddress address { AddressBroadcast };
         uint16_t discardBytes;
 
         if (!buffer.data() || buffer.empty() || (buffer.size() > readBuffer.capacity()))
-            return -EINVAL;
+            return { -EINVAL, address };
 
         do {
             bool doTransportRead { true };
             if (!readBuffer.empty()) {
                 // Try to decode the readBuffer before potentially blocking in the transportRead
-                result = decode(readFrame, readSequenceNumber, readBuffer.dataSpan(), buffer, discardBytes);
+                result = decode(address, readFrame, readSequenceNumber, readBuffer.dataSpan(), buffer, discardBytes);
                 if (result >= 0) {
                     doTransportRead = false;
                 }
@@ -157,10 +166,10 @@ public:
 
             if (doTransportRead) {
                 if ((result = transportRead(readBuffer.unusedSpan())) <= 0)
-                    return result;
+                    return { result, address };
 
                 readBuffer.appendToTail(result);
-                result = decode(readFrame, readSequenceNumber, readBuffer.dataSpan(), buffer, discardBytes);
+                result = decode(address, readFrame, readSequenceNumber, readBuffer.dataSpan(), buffer, discardBytes);
             }
 
             if (discardBytes > 0) {
@@ -172,26 +181,26 @@ public:
                 case FrameData:
                     if (++readSequenceNumber > 7)
                         readSequenceNumber = 0;
-                    writeFrame(FrameAck, readSequenceNumber, {});
-                    return result;
+                    writeFrame(address, FrameAck, readSequenceNumber, {});
+                    return { result, address };
                 case FrameAck:
                 case FrameNack:
                     writeResult = readFrame;
                     break;
                 }
             } else if ((result == -EIO) && (readFrame == FrameData)) {
-                writeFrame(FrameNack, readSequenceNumber, {});
+                writeFrame(address, FrameNack, readSequenceNumber, {});
             }
         } while (!stopped);
 
-        return result;
+        return { result, address };
     }
 
     //! @brief Writes data to be encoded and sent to the transport layer (thread safe)
-    //! @param data A pointer to the data to be sent
-    //! @param length The length of the data to be sent
+    //! @param address Address of the receiver
+    //! @param buffer Buffer storing the data to be sent
     //! @return The number of bytes sent if positive or an error code from <cerrno>
-    virtual int write(ConstContainer buffer)
+    virtual int write(TransportAddress address, ConstContainer buffer)
     {
         int result;
 
@@ -206,7 +215,7 @@ public:
 
         for (uint8_t tries = 0; tries <= writeRetries; tries++) {
             writeResult = -1;
-            if ((result = writeFrame(FrameData, writeSequenceNumber, buffer)) <= 0)
+            if ((result = writeFrame(address, FrameData, writeSequenceNumber, buffer)) <= 0)
                 break;
 
             if (writeTimeout == 0)
@@ -285,15 +294,16 @@ protected:
         typename std::span<T>::iterator itr;
     };
 
-    int encode(Frame& frame, uint8_t& sequenceNumber, ConstContainer source, Hdlcpp::span<uint8_t> destination)
+    int encode(TransportAddress address, Frame& frame, uint8_t& sequenceNumber, ConstContainer source, Hdlcpp::span<uint8_t> destination)
     {
         uint8_t value = 0;
         uint16_t i, fcs16Value = Fcs16InitValue;
 
         if (!destination.push_back(FlagSequence))
             return -EINVAL;
-        fcs16Value = fcs16(fcs16Value, AllStationAddress);
-        if (escape(AllStationAddress, destination) < 0)
+
+        fcs16Value = fcs16(fcs16Value, address);
+        if (escape(address, destination) < 0)
             return -EINVAL;
 
         value = encodeControlByte(frame, sequenceNumber);
@@ -327,7 +337,7 @@ protected:
         return destination.size();
     }
 
-    int decode(Frame& frame, uint8_t& sequenceNumber, const Container source, Container destination, uint16_t& discardBytes) const
+    int decode(TransportAddress& address, Frame& frame, uint8_t& sequenceNumber, const Container source, Container destination, uint16_t& discardBytes) const
     {
         uint8_t value = 0;
         bool controlEscape = false;
@@ -359,7 +369,7 @@ protected:
 
                     frameStopIndex = i;
                     break;
-                } else if (source[i] == ControlEscape) {
+                } else if (source[i] == ControlEscape) { // FIXME: Addressing with "ControlEscape" will not work
                     controlEscape = true;
                 } else {
                     if (controlEscape) {
@@ -370,9 +380,13 @@ protected:
                     }
 
                     fcs16Value = fcs16(fcs16Value, value);
-                    int controlByteIndex = frameStartIndex + 2;
+                    const int addressByteIndex = frameStartIndex + 1;
+                    const int controlByteIndex = frameStartIndex + 2;
 
-                    if (i == controlByteIndex) {
+                    // Flag; Address; Control; Data ..
+                    if (i == addressByteIndex) {
+                        address = value;
+                    } else if (i == controlByteIndex) {
                         decodeControlByte(value, frame, sequenceNumber);
                     } else if (i > controlByteIndex) {
                         destination[destinationIndex++] = value;
@@ -399,11 +413,11 @@ protected:
         return result;
     }
 
-    int writeFrame(Frame frame, uint8_t sequenceNumber, ConstContainer data)
+    int writeFrame(TransportAddress address, Frame frame, uint8_t sequenceNumber, ConstContainer data)
     {
         int result;
 
-        if ((result = encode(frame, sequenceNumber, data, { writeBuffer })) < 0)
+        if ((result = encode(address, frame, sequenceNumber, data, { writeBuffer })) < 0)
             return result;
 
         return transportWrite(std::span(writeBuffer).first(result));
@@ -510,7 +524,6 @@ protected:
     static constexpr uint16_t Fcs16GoodValue = 0xf0b8;
     static constexpr uint8_t FlagSequence = 0x7e;
     static constexpr uint8_t ControlEscape = 0x7d;
-    static constexpr uint8_t AllStationAddress = 0xff;
 
     std::mutex writeMutex;
     TransportRead transportRead;
