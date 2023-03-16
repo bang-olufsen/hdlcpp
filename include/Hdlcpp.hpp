@@ -473,7 +473,7 @@ protected:
 
     static uint16_t fcs16(uint16_t fcs16Value, uint8_t value)
     {
-        static const uint16_t fcs16ValueTable[256] = { 0x0000, 0x1189, 0x2312, 0x329b,
+        static constexpr uint16_t fcs16ValueTable[256] = { 0x0000, 0x1189, 0x2312, 0x329b,
             0x4624, 0x57ad, 0x6536, 0x74bf, 0x8c48, 0x9dc1, 0xaf5a, 0xbed3, 0xca6c,
             0xdbe5, 0xe97e, 0xf8f7, 0x1081, 0x0108, 0x3393, 0x221a, 0x56a5, 0x472c,
             0x75b7, 0x643e, 0x9cc9, 0x8d40, 0xbfdb, 0xae52, 0xdaed, 0xcb64, 0xf9ff,
@@ -506,11 +506,11 @@ protected:
         return (fcs16Value >> 8) ^ fcs16ValueTable[(fcs16Value ^ value) & 0xff];
     }
 
-    const uint16_t Fcs16InitValue = 0xffff;
-    const uint16_t Fcs16GoodValue = 0xf0b8;
-    const uint8_t FlagSequence = 0x7e;
-    const uint8_t ControlEscape = 0x7d;
-    const uint8_t AllStationAddress = 0xff;
+    static constexpr uint16_t Fcs16InitValue = 0xffff;
+    static constexpr uint16_t Fcs16GoodValue = 0xf0b8;
+    static constexpr uint8_t FlagSequence = 0x7e;
+    static constexpr uint8_t ControlEscape = 0x7d;
+    static constexpr uint8_t AllStationAddress = 0xff;
 
     std::mutex writeMutex;
     TransportRead transportRead;
