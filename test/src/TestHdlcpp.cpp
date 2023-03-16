@@ -1,13 +1,15 @@
-#include <catch.hpp>
 #include "turtle/catch.hpp"
+#include <catch.hpp>
 
 #define protected public
 #include "Hdlcpp.hpp"
 
 class HdlcppFixture {
     static constexpr uint16_t bufferSize = 64;
+
 public:
-    HdlcppFixture() : hdlcpp_writeBuffer(bufferSize)
+    HdlcppFixture()
+        : hdlcpp_writeBuffer(bufferSize)
     {
         hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
             [this](Hdlcpp::Container buffer) { return transportRead(buffer); },
@@ -15,7 +17,7 @@ public:
             hdlcpp_readBuffer,
             hdlcpp_writeBuffer,
             1 // Use a 1 ms timeout to speed up tests
-            );
+        );
 
         // For testing only execute a single iteration instead of blocking
         hdlcpp->stopped = true;
@@ -40,8 +42,8 @@ public:
     const uint8_t frameDataDoubleFlagSequence[9] = { 0x7e, 0x7e, 0xff, 0x12, 0x55, 0x36, 0xa3, 0x7e, 0x7e };
 
     std::shared_ptr<Hdlcpp::Hdlcpp> hdlcpp;
-    Hdlcpp::StaticBuffer<Hdlcpp::Calculate<bufferSize>::WithOverhead> hdlcpp_readBuffer{};
-    std::vector<Hdlcpp::value_type> hdlcpp_writeBuffer{};
+    Hdlcpp::StaticBuffer<Hdlcpp::Calculate<bufferSize>::WithOverhead> hdlcpp_readBuffer {};
+    std::vector<Hdlcpp::value_type> hdlcpp_writeBuffer {};
     std::vector<uint8_t> readBuffer;
     std::vector<uint8_t> writeBuffer;
     uint8_t dataBuffer[10];
@@ -51,19 +53,19 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
 {
     SECTION("Test write with invalid input")
     {
-        CHECK(hdlcpp->write({dataBuffer, 0}) == -EINVAL);
+        CHECK(hdlcpp->write({ dataBuffer, 0 }) == -EINVAL);
         CHECK(hdlcpp->write({}) == -EINVAL);
     }
 
     SECTION("Test write with valid 1 byte data input")
     {
-        hdlcpp->write({&frameData[3], 1});
+        hdlcpp->write({ &frameData[3], 1 });
         CHECK(std::memcmp(frameData, writeBuffer.data(), sizeof(frameData)) == 0);
     }
 
     SECTION("Test write/read with FlagSequence as data input")
     {
-        hdlcpp->write({&hdlcpp->FlagSequence, 1});
+        hdlcpp->write({ &hdlcpp->FlagSequence, 1 });
         // Size should be 1 byte more compared to a 1 byte data frame due to escape of the value
         CHECK(writeBuffer.size() == (sizeof(frameData) + 1));
 
@@ -75,7 +77,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
 
     SECTION("Test write/read with ControlEscape as data input")
     {
-        hdlcpp->write({&hdlcpp->ControlEscape, 1});
+        hdlcpp->write({ &hdlcpp->ControlEscape, 1 });
         // Size should be 1 byte more compared to a 1 byte data frame due to escape of the value
         CHECK(writeBuffer.size() == (sizeof(frameData) + 1));
 
@@ -87,10 +89,10 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
 
     SECTION("Test read with invalid input")
     {
-        CHECK(hdlcpp->read({dataBuffer, 0}) == -EINVAL);
+        CHECK(hdlcpp->read({ dataBuffer, 0 }) == -EINVAL);
         CHECK(hdlcpp->read({}) == -EINVAL);
         // This should fail as the buffer size is configured to less
-        CHECK(hdlcpp->read({dataBuffer, 256}) == -EINVAL);
+        CHECK(hdlcpp->read({ dataBuffer, 256 }) == -EINVAL);
 
         readBuffer.assign(frameDataInvalid, frameDataInvalid + sizeof(frameDataInvalid));
         CHECK(hdlcpp->read(dataBuffer) == -EIO);
@@ -181,12 +183,12 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
 
     SECTION("Test encode/decode functions with 1 byte data")
     {
-        std::array<uint8_t, 256> data{};
+        std::array<uint8_t, 256> data {};
         uint16_t discardBytes = 0;
         uint8_t dataValue = 0x55, encodeSequenceNumber = 3, decodeSequenceNumber = 0;
         Hdlcpp::Hdlcpp::Frame encodeFrame = Hdlcpp::Hdlcpp::FrameData, decodeFrame = Hdlcpp::Hdlcpp::FrameNack;
 
-        CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {&dataValue, sizeof(dataValue)}, {data}) > 0);
+        CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, { &dataValue, sizeof(dataValue) }, { data }) > 0);
         CHECK(hdlcpp->decode(decodeFrame, decodeSequenceNumber, data, dataBuffer, discardBytes) > 0);
         CHECK(encodeFrame == decodeFrame);
         CHECK(encodeSequenceNumber == decodeSequenceNumber);
@@ -200,46 +202,46 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         uint8_t dataValue = 0x55, encodeSequenceNumber = 3;
 
         {
-            std::array<uint8_t, 0> buffer{};
-            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {}, {buffer}) == -EINVAL);
+            std::array<uint8_t, 0> buffer {};
+            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {}, { buffer }) == -EINVAL);
         }
 
         {
-            std::array<uint8_t, 1> buffer{};
-            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {}, {buffer}) == -EINVAL);
+            std::array<uint8_t, 1> buffer {};
+            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {}, { buffer }) == -EINVAL);
         }
 
         {
-            std::array<uint8_t, 2> buffer{};
-            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {}, {buffer}) == -EINVAL);
+            std::array<uint8_t, 2> buffer {};
+            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {}, { buffer }) == -EINVAL);
         }
 
         {
-            std::array<uint8_t, 3> buffer{};
-            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {}, {buffer}) == -EINVAL);
+            std::array<uint8_t, 3> buffer {};
+            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {}, { buffer }) == -EINVAL);
         }
 
         {
-            std::array<uint8_t, 3> buffer{};
-            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {&dataValue, sizeof(dataValue)}, {buffer}) == -EINVAL);
+            std::array<uint8_t, 3> buffer {};
+            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, { &dataValue, sizeof(dataValue) }, { buffer }) == -EINVAL);
         }
 
         {
-            std::array<uint8_t, 4> buffer{};
-            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {&dataValue, sizeof(dataValue)}, {buffer}) == -EINVAL);
+            std::array<uint8_t, 4> buffer {};
+            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, { &dataValue, sizeof(dataValue) }, { buffer }) == -EINVAL);
         }
 
         {
-            std::array<uint8_t, 6> buffer{};
-            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, {&dataValue, sizeof(dataValue)}, {buffer}) == -EINVAL);
+            std::array<uint8_t, 6> buffer {};
+            CHECK(hdlcpp->encode(encodeFrame, encodeSequenceNumber, { &dataValue, sizeof(dataValue) }, { buffer }) == -EINVAL);
         }
     }
 
     SECTION("Test escape in a too small buffer")
     {
-        std::array<uint8_t, 0> buffer{};
+        std::array<uint8_t, 0> buffer {};
         Hdlcpp::Hdlcpp::span<uint8_t> span(buffer);
-        const auto value {GENERATE(0x7e, 0x7d)};
+        const auto value { GENERATE(0x7e, 0x7d) };
         CHECK(hdlcpp->escape(value, span) == -EINVAL);
     }
 
@@ -281,7 +283,7 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
 
     SECTION("Test push_back on full buffer")
     {
-        std::array<uint8_t, 1> buffer{};
+        std::array<uint8_t, 1> buffer {};
 
         Hdlcpp::Hdlcpp::span<uint8_t> span(buffer);
 
@@ -289,6 +291,4 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         CHECK_FALSE(span.push_back(2));
         CHECK(buffer.back() == 1);
     }
-
-
 }

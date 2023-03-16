@@ -1,0 +1,27 @@
+---
+BasedOnStyle: WebKit
+Standard: c++20
+NamespaceIndentation: None
+AlignEscapedNewlinesLeft: true
+MaxEmptyLinesToKeep: 2
+FixNamespaceComments: true
+SortIncludes: true
+SpaceInEmptyBlock: true
+PointerAlignment: Left
+AllowShortBlocksOnASingleLine: Empty
+IncludeCategories:
+  # Headers from catch or turtle must come first
+  - Regex:           '(catch)|(turtle)'
+    Priority:        1
+  # Headers in <> without extension.
+  - Regex:           '<([A-Za-z0-9\/-_])+>'
+    Priority:        4
+  # Headers in <> with extension.
+  - Regex:           '<([A-Za-z0-9./-_])+>'
+    Priority:        3
+  # Headers in "" with extension.
+  - Regex:           '"([A-Za-z0-9./-])+"'
+    Priority:        2
+ForEachMacros: ['foreach', 'BOOST_FOREACH']
+...
+
