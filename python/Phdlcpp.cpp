@@ -29,18 +29,15 @@ PYBIND11_MODULE(phdlcpp, m)
         }))
         .def(
             "read", [](Hdlcpp::Hdlcpp* hdlcpp, uint16_t length) {
-                int bytes;
                 uint8_t data[length];
 
-                if ((bytes = hdlcpp->read({ data, length })) < 0)
-                    bytes = 0;
-
-                return pybind11::bytes(reinterpret_cast<char*>(data), bytes);
+                auto response { hdlcpp->read({ data, length }) };
+                return pybind11::bytes(reinterpret_cast<char*>(data), response.size >= 0 ? response.size : 0);
             },
             pybind11::call_guard<pybind11::gil_scoped_release>())
         .def(
             "write", [](Hdlcpp::Hdlcpp* hdlcpp, char* data, uint16_t length) {
-                return hdlcpp->write({ reinterpret_cast<uint8_t*>(data), length });
+                return hdlcpp->write(Hdlcpp::AddressBroadcast, { reinterpret_cast<uint8_t*>(data), length });
             },
             pybind11::call_guard<pybind11::gil_scoped_release>())
         .def(

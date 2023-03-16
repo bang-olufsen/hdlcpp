@@ -25,9 +25,15 @@ hdlcpp = std::make_shared<Hdlcpp::Hdlcpp>(
 To read and write data using Hdlcpp the read and write functions are used. These could again e.g. be used as lambdas expressions to a protocol implementation (layered architecture). The protocol could e.g. be [nanopb](https://github.com/nanopb/nanopb).
 
 ```cpp
+Hdlcpp::TransportAddress address { 0x00 };
 protocol = std::make_shared<Protocol>(
-    [this](std::span<uint8_t> buffer) { return hdlcpp->read(buffer); },
-    [this](const std::span<const uint8_t> buffer) { return hdlcpp->write(buffer); });
+    [this, address](std::span<uint8_t> buffer) { 
+        const auto res = hdlcpp->read(buffer);
+        if (res.address == address || res.address == Hdlcpp::BroadcastAddress)
+            return res.size;
+        return 0;
+    },
+    [this](const std::span<const uint8_t> buffer) { return hdlcpp->write(address, buffer); });
 ```
 
 ## Python binding
@@ -41,6 +47,11 @@ The supported HDLC frames are limited to DATA (I-frame with Poll bit), ACK (S-fr
 Acknowledge of frame | Negative acknowledge of frame | Acknowledge of frame lost
 --- | --- | ---
 ![](https://bang-olufsen.gravizo.com/svg?%3B%0A%40startuml%3B%0Ahide%20footbox%3B%0AA%20-%3E%20B:%20DATA%20[sequence%20number%20=%201]%3B%0AB%20-%3E%20A:%20DATA%20[sequence%20number%20=%204]%3B%0AB%20-%3E%20A:%20ACK%20[sequence%20number%20=%202]%3B%0AA%20-%3E%20B:%20ACK%20[sequence%20number%20=%205]%3B%0A%40enduml) | ![](https://bang-olufsen.gravizo.com/svg?%3B%0A%40startuml%3B%0Ahide%20footbox%3B%0AA%20-%3E%20B:%20DATA%20[sequence%20number%20=%201]%3B%0AB%20-%3E%20A:%20NACK%20[sequence%20number%20=%201]%3B%0AA%20-%3E%20B:%20DATA%20[sequence%20number%20=%201]%3B%0A%40enduml) | ![](https://bang-olufsen.gravizo.com/svg?%3B%0A%40startuml%3B%0Ahide%20footbox%3B%0AA%20-%3E%20B:%20DATA%20[sequence%20number%20=%201]%3B%0AB%20-%3Ex%20A:%20ACK%20[sequence%20number%20=%202]%3B%0A...%20Timeout%20...%3B%0AA%20-%3E%20B:%20DATA%20[sequence%20number%20=%201]%3B%0A%40enduml)
+
+### Limitations
+
+Frame addressing:
+Addresses are limited to 8bit resolution. Also using ControlEscape (0x7D) or FlagSequence (0x7E) value as address will not work (should be fixed in the future).
 
 ## Build and run unit tests
 
