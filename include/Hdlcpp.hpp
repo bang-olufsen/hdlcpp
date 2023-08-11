@@ -179,10 +179,19 @@ public:
             if (result >= 0) {
                 switch (readFrame) {
                 case FrameData:
-                    if (++readSequenceNumber > 7)
-                        readSequenceNumber = 0;
+                    nextSequenceNumber(readSequenceNumber);
                     writeFrame(address, FrameAck, readSequenceNumber, {});
-                    return { result, address };
+
+                    // If sequence number matches last sequence number
+                    // it must mean that we're dealing with a retransmission
+                    // We already sent ACK so just ignore the message's data as
+                    // we've already handled it
+                    if (readSequenceNumber == lastReadSequenceNumber) {
+                        return { 0, address };
+                    } else {
+                        lastReadSequenceNumber = readSequenceNumber;
+                        return { result, address };
+                    }
                 case FrameAck:
                 case FrameNack:
                     writeResult = readFrame;
@@ -209,9 +218,7 @@ public:
 
         std::lock_guard<std::mutex> writeLock(writeMutex);
 
-        // Sequence number is a 3-bit value
-        if (++writeSequenceNumber > 7)
-            writeSequenceNumber = 0;
+        nextSequenceNumber(writeSequenceNumber);
 
         for (uint8_t tries = 0; tries <= writeRetries; tries++) {
             writeResult = -1;
@@ -267,6 +274,12 @@ protected:
         ControlTypeReject,
         ControlTypeSelectiveReject,
     };
+
+    // Helper to increment 3 bit sequence numbers
+    void nextSequenceNumber(uint8_t& val) const
+    {
+        val = (val >= 7 ? 0 : val + 1);
+    }
 
     template <typename T>
     struct span {
@@ -534,6 +547,7 @@ protected:
     uint16_t writeTimeout;
     uint8_t writeRetries;
     uint8_t readSequenceNumber { 0 };
+    uint8_t lastReadSequenceNumber { 0xFF }; // initially something invalid (3 bit value)
     uint8_t writeSequenceNumber { 0 };
     std::atomic<int> writeResult { -1 };
     std::atomic<bool> stopped { false };
