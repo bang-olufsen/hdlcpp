@@ -89,6 +89,12 @@ public:
         return m_tail;
     }
 
+    void clear()
+    {
+        m_head = m_buffer.begin();
+        m_tail = m_head;
+    }
+
 private:
     Container m_buffer {};
     typename Container::iterator m_head { m_buffer.begin() };
@@ -161,6 +167,12 @@ public:
                 result = decode(address, readFrame, readSequenceNumber, readBuffer.dataSpan(), buffer, discardBytes);
                 if (result >= 0) {
                     doTransportRead = false;
+                } else if (readBuffer.unusedSpan().size() == 0) {
+                    // Drop the buffer in an attempt to recover from getting
+                    // filled with an invalid message.
+                    // FIXME: really start/stop codes should be tracked to
+                    //        implement this in a more fail-safe way
+                    readBuffer.clear();
                 }
             }
 
