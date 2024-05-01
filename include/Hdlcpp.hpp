@@ -84,8 +84,8 @@ public:
             for (const auto& byte : toBeMoved) {
                 *first++ = byte;
             }
-            m_tail = first;
         }
+        m_tail = first;
         return m_tail;
     }
 
