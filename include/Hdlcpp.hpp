@@ -440,6 +440,8 @@ protected:
 
     int writeFrame(TransportAddress address, Frame frame, uint8_t sequenceNumber, ConstContainer data)
     {
+        std::lock_guard<std::mutex> writeLock(writeFrameMutex);
+
         int result;
 
         if ((result = encode(address, frame, sequenceNumber, data, { writeBuffer })) < 0)
@@ -550,7 +552,11 @@ protected:
     static constexpr uint8_t FlagSequence = 0x7e;
     static constexpr uint8_t ControlEscape = 0x7d;
 
+    // Whenever writeMutex and writeFrameMutex both needs to be locked from the
+    // same thread, writeMutex must be locked first.
     std::mutex writeMutex;
+    std::mutex writeFrameMutex;
+
     TransportRead transportRead;
     TransportWrite transportWrite;
     Buffer<uint8_t> readBuffer;
