@@ -303,6 +303,43 @@ TEST_CASE_METHOD(HdlcppFixture, "hdlcpp test", "[single-file]")
         CHECK(hdlcpp->read(dataBuffer).size == 2);
     }
 
+    SECTION("Test read into a too small buffer drops the frame without overflowing")
+    {
+        const uint8_t payload[] = { 1, 2, 3, 4, 5 };
+        hdlcpp->write(Hdlcpp::AddressBroadcast, payload);
+        readBuffer = writeBuffer;
+        writeBuffer.clear();
+
+        std::array<uint8_t, 8> guarded;
+        guarded.fill(0xaa);
+
+        CHECK(hdlcpp->read(std::span<uint8_t>(guarded).first(4)).size == -EMSGSIZE);
+        // Nothing is ack'ed as the data has not been delivered
+        CHECK(writeBuffer.empty());
+        // Nothing must be written outside the supplied buffer
+        for (size_t i = 4; i < guarded.size(); i++)
+            CHECK(guarded[i] == 0xaa);
+    }
+
+    SECTION("Test invalid frame already buffered is nack'ed without reading from transport")
+    {
+        readBuffer.assign(frameData_seq1, frameData_seq1 + sizeof(frameData_seq1));
+        readBuffer.insert(readBuffer.end(), frameDataInvalid, frameDataInvalid + sizeof(frameDataInvalid));
+        readBuffer.insert(readBuffer.end(), frameData_seq2, frameData_seq2 + sizeof(frameData_seq2));
+
+        CHECK(hdlcpp->read(dataBuffer).size == 1);
+        CHECK(std::memcmp(frameAck_seq2, writeBuffer.data(), sizeof(frameAck_seq2)) == 0);
+
+        // The transport has nothing more to offer, the remaining frames are already buffered
+        readBuffer.clear();
+        CHECK(hdlcpp->read(dataBuffer).size == -EIO);
+        CHECK(std::memcmp(frameNack_seq1, writeBuffer.data(), sizeof(frameNack_seq1)) == 0);
+
+        CHECK(hdlcpp->read(dataBuffer).size == 1);
+        CHECK(dataBuffer[0] == frameData_seq2[3]);
+        CHECK(std::memcmp(frameAck_seq3, writeBuffer.data(), sizeof(frameAck_seq3)) == 0);
+    }
+
     SECTION("Test push_back on full buffer")
     {
         std::array<uint8_t, 1> buffer {};

@@ -165,7 +165,7 @@ public:
             if (!readBuffer.empty()) {
                 // Try to decode the readBuffer before potentially blocking in the transportRead
                 result = decode(address, readFrame, readSequenceNumber, readBuffer.dataSpan(), buffer, discardBytes);
-                if (result >= 0) {
+                if (result >= 0 || discardBytes > 0) {
                     doTransportRead = false;
                 } else if (readBuffer.unusedSpan().size() == 0) {
                     // Drop the buffer in an attempt to recover from getting
@@ -197,9 +197,13 @@ public:
                     // If sequence number matches last sequence number
                     // it must mean that we're dealing with a retransmission
                     // We already sent ACK so just ignore the message's data as
-                    // we've already handled it
+                    // we've already handled it. Continue reading (like for
+                    // ack/nack frames) instead of returning, as more frames
+                    // might already be buffered. Returning 0 here would leave
+                    // them unhandled until more data arrives on the transport.
                     if (readSequenceNumber == lastReadSequenceNumber) {
-                        return { 0, address };
+                        result = 0;
+                        break;
                     } else {
                         lastReadSequenceNumber = readSequenceNumber;
                         return { result, address };
@@ -414,7 +418,10 @@ protected:
                     } else if (i == controlByteIndex) {
                         decodeControlByte(value, frame, sequenceNumber);
                     } else if (i > controlByteIndex) {
-                        destination[destinationIndex++] = value;
+                        // Never write outside destination, the size is checked below
+                        if (static_cast<size_t>(destinationIndex) < destination.size())
+                            destination[destinationIndex] = value;
+                        destinationIndex++;
                     }
                 }
             }
@@ -428,6 +435,8 @@ protected:
             // A frame is at least 4 bytes in size and has a valid FCS value
             if ((frameStopIndex >= (frameStartIndex + 4)) && (fcs16Value == Fcs16GoodValue)) {
                 result = destinationIndex - sizeof(fcs16Value);
+                if (static_cast<size_t>(result) > destination.size())
+                    result = -EMSGSIZE;
             } else {
                 result = -EIO;
             }
